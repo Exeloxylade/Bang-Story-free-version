@@ -85,3 +85,8 @@ startup (`warmUpEncryption`) mencegah kunci API tidak terbaca setelah aplikasi d
 ### YouTube embed diberi Referer berisi ID aplikasi
 Halaman dari `file://` tidak mengirim Referer, dan YouTube menolak embed tanpa identitas (Error 153). Header
 ditambahkan hanya untuk `https://www.youtube.com/embed/*`.
+
+### Kunci Gemini LLM dan TTS terpisah
+Kedua formulir dulu menulis baris `gemini` yang sama, sehingga mengganti kunci narator juga mengganti kunci
+penyusun cerita. TTS kini memakai `gemini-tts` untuk kunci, status tes, model, dan suara. Migrasi menyalin
+blob terenkripsi lama sekali tanpa membuka kuncinya; setelah itu tidak ada fallback ke kunci LLM.

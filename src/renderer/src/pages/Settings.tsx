@@ -401,7 +401,7 @@ function LlmSection({ settings, statusOf, onChanged, onSettings }: { settings: A
           name={spec.name}
           status={status}
           help={provider === 'custom' ? 'Contoh: http://localhost:11434/v1 untuk Ollama, http://localhost:1234/v1 untuk LM Studio, https://api.x.ai/v1 untuk Grok.' : 'Setelah kunci disimpan, daftar model diambil langsung dari penyedianya.'}
-          hint={provider === 'gemini' && settings.defaultTtsProvider === 'gemini' ? 'Kunci ini dipakai bersama untuk suara narator Gemini TTS.' : undefined}
+          hint={provider === 'gemini' ? 'Kunci ini hanya dipakai untuk penyusun cerita. Kunci suara narator diatur terpisah.' : undefined}
           link={spec.link}
           linkLabel={spec.linkLabel}
           customUrl={settings.customBaseUrl}
@@ -447,7 +447,8 @@ function LlmSection({ settings, statusOf, onChanged, onSettings }: { settings: A
 
 function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: AppSettings; statusOf: (p: ApiProvider) => KeyStatus | undefined; onChanged: () => void; onSettings: (s: AppSettings) => void }) {
   const provider = settings.defaultTtsProvider
-  const status = statusOf(provider)
+  const keyProvider = provider === 'gemini' ? 'gemini-tts' : provider
+  const status = statusOf(keyProvider)
   const ready = !!status?.configured && status.lastOk !== false
   const models = useModels(provider === 'gemini' ? 'gemini-tts' : 'elevenlabs', ready)
   const options: ProviderOption<TtsProvider>[] = [
@@ -456,7 +457,7 @@ function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: A
       name: 'Gemini TTS',
       note: 'Suara Google Gemini, 30 pilihan suara, mendukung bahasa Indonesia.',
       logo: 'gemini',
-      status: statusOf('gemini')
+      status: statusOf('gemini-tts')
     },
     {
       id: 'elevenlabs',
@@ -477,11 +478,11 @@ function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: A
       <ProviderSelect value={provider} options={options} onChange={async (id) => onSettings(await window.api.settings.set({ defaultTtsProvider: id }))} />
       <Card key={provider}>
         <KeyForm
-          provider={provider}
+          provider={keyProvider}
           name={provider === 'gemini' ? 'Google Gemini' : 'ElevenLabs'}
           status={status}
           help={provider === 'gemini' ? 'Kunci Gemini dari Google AI Studio.' : 'Kunci API dari akun ElevenLabs.'}
-          hint={provider === 'gemini' && settings.llmProvider === 'gemini' ? 'Kunci ini dipakai bersama dengan penyusun cerita Gemini.' : undefined}
+          hint={provider === 'gemini' ? 'Kunci ini hanya dipakai untuk suara narator. Kamu bisa memakai kunci yang berbeda dari penyusun cerita.' : undefined}
           link={provider === 'gemini' ? 'https://aistudio.google.com/apikey' : 'https://elevenlabs.io/app/settings/api-keys'}
           linkLabel={provider === 'gemini' ? 'Buat kunci di Google AI Studio' : 'Buat kunci di ElevenLabs'}
           onChanged={onChanged}

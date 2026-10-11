@@ -8,6 +8,10 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 
 ## [Belum dirilis]
 
+### Diperbaiki
+- Kunci Gemini untuk penyusun cerita dan Gemini TTS disimpan terpisah. Mengubah atau menghapus satu kunci tidak
+  lagi mengubah kunci lainnya; kunci lama disalin sekali untuk menjaga narasi saat aplikasi diperbarui.
+
 ## [1.0.0] - 2026-10-02
 
 Rilis pertama Bang Story (sebelumnya bernama Studio Cerita).
