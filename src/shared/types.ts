@@ -2,7 +2,7 @@ export type ProjectStatus = 'draft' | 'script' | 'storyboard' | 'editing' | 'exp
 export type AspectRatio = '16:9' | '9:16'
 export type TtsProvider = 'gemini' | 'elevenlabs'
 export type LlmProvider = 'gemini' | 'openrouter' | 'groq' | 'custom'
-export type ApiProvider = 'higgsfield' | 'gemini' | 'elevenlabs' | 'openrouter' | 'groq' | 'custom'
+export type ApiProvider = 'higgsfield' | 'gemini' | 'gemini-tts' | 'elevenlabs' | 'openrouter' | 'groq' | 'custom'
 /** Where a live model list comes from: an LLM provider, or a TTS catalog. */
 export type ModelSource = LlmProvider | 'gemini-tts' | 'elevenlabs'
 export type MotionType = 'camera' | 'video'

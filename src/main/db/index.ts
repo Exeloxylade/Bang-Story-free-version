@@ -133,6 +133,12 @@ const MIGRATIONS: string[] = [
   ALTER TABLE clips ADD COLUMN voice_in_ms INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE clips ADD COLUMN voice_out_ms INTEGER;
   ALTER TABLE clips ADD COLUMN voice_start_ms INTEGER NOT NULL DEFAULT 0;
+  `,
+  // Preserve narration on upgrade, then let text and speech credentials change independently.
+  `
+  INSERT OR IGNORE INTO secrets (provider, value, last_ok, last_message, checked_at)
+    SELECT 'gemini-tts', value, last_ok, last_message, checked_at FROM secrets WHERE provider = 'gemini';
+  DELETE FROM cache WHERE key IN ('models:gemini-tts', 'voices:gemini');
   `
 ]
 

@@ -8,7 +8,7 @@ export const TTS_NAMES: Record<TtsProvider, string> = { gemini: 'Gemini TTS', el
  */
 export function ttsReadiness(keys: KeyStatus[]): Record<TtsProvider, { ok: boolean; reason: string | null }> {
   const one = (p: TtsProvider): { ok: boolean; reason: string | null } => {
-    const k = keys.find((x) => x.provider === p)
+    const k = keys.find((x) => x.provider === (p === 'gemini' ? 'gemini-tts' : p))
     const name = p === 'gemini' ? 'Gemini' : 'ElevenLabs'
     if (!k?.configured) return { ok: false, reason: `Kunci ${name} belum diisi` }
     if (k.lastOk === false) return { ok: false, reason: `Kunci ${name} tidak valid` }
