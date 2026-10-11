@@ -51,6 +51,8 @@ import { dropCache, getSettings, setSettings } from './settings'
 import { probeDurationMs, probeSize } from './services/audio'
 import * as eleven from './services/elevenlabs'
 import * as gemini from './services/gemini'
+import * as flow from './services/flow2api'
+import * as flowSetup from './flowSetup'
 import * as hf from './services/higgsfield'
 import * as llm from './services/llm'
 import { generateScript, generateVisuals, generateMusicPrompt } from './story'
@@ -70,8 +72,10 @@ function handle(channel: string, fn: Handler): void {
 }
 
 async function testProvider(provider: ApiProvider, key?: string): Promise<KeyTestResult> {
+  if (provider === 'flow2api') return flow.testKey(key)
   if (provider === 'higgsfield') return hf.testCredentials(key)
   if (provider === 'elevenlabs') return eleven.testKey(key)
+  if (provider === 'gemini-tts') return gemini.testKey(key, provider)
   return llm.testLlm(provider, key)
 }
 
@@ -101,6 +105,15 @@ export function registerIpc(): void {
   handle('generate:narration', (projectId: string, mode: 'missing' | 'all') => generateNarration(projectId, mode === 'all' ? 'all' : 'missing'))
   handle('generate:syncCaptions', (projectId: string, mode?: 'stale' | 'all') => syncCaptions(projectId, mode === 'all' ? 'all' : 'stale'))
 
+  handle('flowSetup:status', () => flowSetup.flowSetupStatus())
+  handle('flowSetup:install', () => flowSetup.installFlow())
+  handle('flowSetup:cancel', () => flowSetup.cancelFlowInstall())
+  handle('flowSetup:start', () => flowSetup.startFlow())
+  handle('flowSetup:stop', () => flowSetup.stopFlow())
+  handle('flowSetup:setEnabled', (enabled: boolean) => flowSetup.enableLocalFlow(enabled === true))
+  handle('flowSetup:openPanel', () => flowSetup.openFlowPanel())
+  handle('flowSetup:check', () => flowSetup.checkFlowAccount())
+  handle('flowSetup:useDefaults', () => flowSetup.useFlowDefaults())
   handle('whisper:status', () => whisperStatus())
   // The download runs in the background and reports through whisper events.
   handle('whisper:download', () => {
@@ -189,7 +202,7 @@ export function registerIpc(): void {
     if (!clean) throw new Error('Kunci masih kosong')
     setSecret(provider, clean)
     dropCache(`models:${provider}`)
-    if (provider === 'gemini') dropCache('models:gemini-tts')
+    if (provider === 'gemini-tts') dropCache('voices:gemini')
     if (provider === 'higgsfield') forgetEstimates()
     const result = await testProvider(provider, clean)
     recordCheck(provider, result.ok, result.message)
@@ -208,6 +221,7 @@ export function registerIpc(): void {
   handle('settings:clearKey', (provider: ApiProvider) => {
     clearSecret(provider)
     dropCache(`models:${provider}`)
+    if (provider === 'gemini-tts') dropCache('voices:gemini')
     if (provider === 'higgsfield') forgetEstimates()
     if (provider === 'custom') setSettings({ customBaseUrl: '' })
   })

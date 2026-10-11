@@ -76,6 +76,17 @@ const api: StudioApi = {
     copyText: call('app:copyText'),
     version: call('app:version')
   },
+  flowSetup: {
+    status: call('flowSetup:status'),
+    install: call('flowSetup:install'),
+    cancel: call('flowSetup:cancel'),
+    start: call('flowSetup:start'),
+    stop: call('flowSetup:stop'),
+    setEnabled: call('flowSetup:setEnabled'),
+    openPanel: call('flowSetup:openPanel'),
+    check: call('flowSetup:check'),
+    useDefaults: call('flowSetup:useDefaults')
+  },
   whisper: {
     status: call('whisper:status'),
     download: call('whisper:download'),
@@ -84,6 +95,7 @@ const api: StudioApi = {
     openFolder: call('whisper:openFolder')
   },
   on: {
+    flow: listen(EVENTS.flow),
     whisper: listen(EVENTS.whisper),
     job: listen(EVENTS.job),
     clip: listen(EVENTS.clip),

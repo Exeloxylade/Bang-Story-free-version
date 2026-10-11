@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, Play, Sparkles, Square } from 'lucide-react'
-import { getImageModel } from '@shared/higgsfield'
+import { getMediaImageModel as getImageModel } from '@shared/media'
 import { DURATIONS, LANGUAGES, clipCountFor, llmName } from '@shared/models'
 import { getStyle } from '@shared/styles'
 import type { KeyStatus, LlmProvider, TtsProvider, VoiceOption } from '@shared/types'
@@ -285,7 +285,8 @@ export function IdeaStep() {
               onChange={(patch) => {
                 updateProject(patch)
                 // New projects start with the models picked last; resolution stays with this project.
-                if (!('videoResolution' in patch)) void window.api.settings.set(patch)
+                const models = { ...(patch.imageModel ? { imageModel: patch.imageModel } : {}), ...(patch.videoModel ? { videoModel: patch.videoModel } : {}) }
+                if (models.imageModel || models.videoModel) void window.api.settings.set(models)
               }}
             />
           </div>

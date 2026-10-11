@@ -18,7 +18,8 @@ import {
   Trash2,
   Volume2
 } from 'lucide-react'
-import { effectiveResolution, fitDuration, getImageModel, getVideoModel } from '@shared/higgsfield'
+import { effectiveResolution, fitDuration } from '@shared/higgsfield'
+import { getMediaImageModel as getImageModel, getMediaVideoModel as getVideoModel, isFlowModel } from '@shared/media'
 import { CAMERA_PRESETS, MOTION_STRENGTHS, cameraAt, cameraCss } from '@shared/motion'
 import { needsVisual } from '@shared/script'
 import { geminiVoiceName, geminiVoiceTone } from '@shared/models'
@@ -500,7 +501,7 @@ export function StoryboardStep() {
     return () => {
       live = false
     }
-  }, [videoLengths, project?.aspectRatio, project?.videoResolution])
+  }, [videoLengths, project?.videoModel, project?.aspectRatio, project?.videoResolution])
 
   if (!project) return null
   const selIndex = Math.max(0, clips.findIndex((c) => c.id === selectedClipId))
@@ -528,7 +529,8 @@ export function StoryboardStep() {
     const ok = await confirmDialog({
       title: `Jadikan ${n} klip video AI?`,
       body:
-        `Setiap gambar klip dianimasikan dengan ${getVideoModel(project!.videoModel).name}, panjangnya mengikuti suara narasi klip itu.` +
+        `Setiap gambar klip dianimasikan dengan ${getVideoModel(project!.videoModel).name}. ` +
+        (isFlowModel(project!.videoModel) ? 'Durasi video mengikuti model Flow2API yang dipilih.' : 'Panjangnya mengikuti suara narasi klip itu.') +
         (videoCredits != null ? ` Perkiraan biaya ${Math.round(videoCredits * 10) / 10} kredit Higgsfield.` : '') +
         ' Klip yang sudah punya video tidak dibuat ulang.',
       confirm: `Buat ${n} video`

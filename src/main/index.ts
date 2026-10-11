@@ -7,6 +7,8 @@ import { resumeJobs } from './generation'
 import { registerIpc } from './ipc'
 import { handleStudioProtocol, registerSchemes } from './protocol'
 import { warmUpEncryption } from './secrets'
+import { flowSetupStatus, startFlow, shutdownFlow } from './flowSetup'
+import { getSettings } from './settings'
 
 /**
  * The app used to be called "Studio Cerita". Its data folder (projects, database, saved keys) moves to the
@@ -102,6 +104,7 @@ if (!single) {
     handleStudioProtocol()
     registerIpc()
     createWindow()
+    if (getSettings().flowLocalEnabled && flowSetupStatus().installed) void startFlow().catch(() => {})
     resumeJobs()
 
     app.on('activate', () => {
@@ -113,5 +116,6 @@ if (!single) {
     if (process.platform !== 'darwin') app.quit()
   })
 
+  app.on('before-quit', () => shutdownFlow())
   app.on('will-quit', () => closeDb())
 }

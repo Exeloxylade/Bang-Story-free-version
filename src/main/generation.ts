@@ -5,6 +5,7 @@ import { estimateWordTimings } from '@shared/captions'
 import { stripVoiceTags } from '@shared/speech'
 import { getImageModel, getVideoModel, imageBody, maxRefs, promptLimit, videoBody, type HfModel } from '@shared/higgsfield'
 import { getStyle } from '@shared/styles'
+import { flowAspectModel, isFlowModel } from '@shared/media'
 import type { AspectRatio, Asset, Character, Clip, CreditEstimate, Job, Project, WordTiming } from '@shared/types'
 import { getDb } from './db'
 import { emit } from './events'
@@ -33,6 +34,7 @@ import { probeDurationMs, probeSize } from './services/audio'
 import * as eleven from './services/elevenlabs'
 import * as gemini from './services/gemini'
 import * as hf from './services/higgsfield'
+import * as flow from './services/flow2api'
 import { downloadTo, sleep } from './services/http'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -237,10 +239,68 @@ function updateJobPayload(jobId: string, payload: HfPayload): void {
 
 // ---------- public entry points ----------
 
+function startFlow(projectId: string, target: HfPayload['target'], clipId?: string, characterId?: string): Job {
+  const video = target === 'clip-video'
+  const job = insertJob({ projectId, clipId, characterId, kind: video ? 'video' : target === 'sheet' ? 'sheet' : 'image', provider: 'flow2api' })
+  emit.job(job)
+  return runJob(job, target === 'sheet' ? 'flow2api-sheet' : 'flow2api', async (ctx) => {
+    const project = getProject(projectId)
+    const selected = video ? project.videoModel : project.imageModel
+    if (!selected || !isFlowModel(selected)) throw new Error('Penyedia proyek berubah. Pilih model Flow2API lalu coba lagi.')
+    const model = flowAspectModel(selected, target === 'sheet' ? '16:9' : project.aspectRatio)
+    const refs: string[] = []
+    let prompt: string
+    ctx.progress(0.05, 'Menyiapkan prompt Flow2API')
+    if (target === 'sheet') {
+      prompt = sheetPrompt(project, getCharacter(characterId!)) + '\nFrame format 16:9.'
+    } else {
+      const clip = getClip(clipId!)
+      if (video) {
+        const image = getAsset(clip.imageAssetId)
+        if (!image) throw new Error('Gambar klip tidak ditemukan')
+        refs.push(flow.imageData(assetAbsPath(projectId, image.localPath)))
+        prompt = (clip.videoPrompt.trim() || `${splitAvoid(clip.visualPrompt).scene}. Subtle natural motion, slow camera push in.`) + '\nKeep the art style, characters and composition of the first frame. No music, no speech, no vocals.'
+      } else {
+        const chars = charactersOf(projectId).filter(c => clip.characterIds.includes(c.id))
+        await waitForSheets(chars.map(c => c.id), ctx.signal)
+        const names: string[] = []
+        for (const c of chars) {
+          const sheet = getAsset(getCharacter(c.id).sheetAssetId)
+          if (!sheet || refs.length >= 3) continue
+          refs.push(flow.imageData(assetAbsPath(projectId, sheet.localPath)))
+          names.push(c.name)
+        }
+        prompt = clipPrompt(project, clip, chars, names, Number.MAX_SAFE_INTEGER)
+      }
+    }
+    ctx.progress(0.15, video ? 'Membuat video di Flow2API' : 'Membuat gambar di Flow2API')
+    const result = await flow.generate(model, prompt, refs, video ? 'video' : 'image', ctx.signal, message => ctx.progress(0.5, message))
+    ctx.progress(0.93, 'Menyimpan hasil Flow2API')
+    const rel = saveFile(projectId, video ? 'videos' : 'images', extFromType(result.contentType, result.url ?? '', video ? '.mp4' : '.png'), result.bytes)
+    const abs = assetAbsPath(projectId, rel)
+    const size = await probeSize(abs)
+    const durationMs = video ? await probeDurationMs(abs) : null
+    const asset = insertAsset({ projectId, clipId, characterId, kind: video ? 'video' : 'image', provider: 'flow2api', model, prompt, remoteUrl: result.url, localPath: rel, durationMs, width: size?.width ?? null, height: size?.height ?? null })
+    emit.asset(asset)
+    if (target === 'sheet') {
+      setCharacterSheet(characterId!, asset.id)
+      emit.character({ characterId: characterId!, patch: { sheetAssetId: asset.id } })
+    } else {
+      const patch = video ? { videoAssetId: asset.id, motionType: 'video' as const, mediaInMs: 0 } : { imageAssetId: asset.id }
+      patchClip(clipId!, patch)
+      emit.clip({ clipId: clipId!, patch })
+      if (!video && (!project.coverAssetId || clipsOf(projectId)[0]?.id === clipId)) touchProject(projectId, { coverAssetId: asset.id })
+    }
+    touchProject(projectId)
+    return asset.id
+  })
+}
+
 export function generateClipImage(clipId: string): Job {
   const existing = activeJobFor({ clipId }, 'image')
   if (existing) return existing
   const clip = getClip(clipId)
+  if (isFlowModel(getProject(clip.projectId).imageModel)) return startFlow(clip.projectId, 'clip-image', clipId)
   const job = insertJob({ projectId: clip.projectId, clipId, kind: 'image', provider: 'higgsfield' })
   return startHiggsfield(job, async (ctx) => {
     const fresh = getClip(clipId)
@@ -261,6 +321,7 @@ export function generateCharacterSheet(characterId: string): Job {
   const existing = activeJobFor({ characterId }, 'sheet')
   if (existing) return existing
   const c = getCharacter(characterId)
+  if (isFlowModel(getProject(c.projectId).imageModel)) return startFlow(c.projectId, 'sheet', undefined, characterId)
   const job = insertJob({ projectId: c.projectId, characterId, kind: 'sheet', provider: 'higgsfield' })
   return startHiggsfield(job, async () => {
     const project = getProject(c.projectId)
@@ -279,6 +340,7 @@ export function generateClipVideo(clipId: string): Job {
   if (existing) return existing
   const clip = getClip(clipId)
   if (!clip.imageAssetId) throw new Error('Buat gambar klip ini dulu sebelum membuat video AI.')
+  if (isFlowModel(getProject(clip.projectId).videoModel)) return startFlow(clip.projectId, 'clip-video', clipId)
   const job = insertJob({ projectId: clip.projectId, clipId, kind: 'video', provider: 'higgsfield' })
   return startHiggsfield(job, async (ctx) => {
     const fresh = getClip(clipId)
@@ -358,7 +420,7 @@ export function generateMissingImages(projectId: string): Job[] {
   const jobs: Job[] = []
   const project = getProject(projectId)
   const model = getImageModel(project.imageModel)
-  if (maxRefs(model) > 0) {
+  if (isFlowModel(project.imageModel) || maxRefs(model) > 0) {
     const needed = new Set(clipsOf(projectId).flatMap((c) => c.characterIds))
     for (const c of charactersOf(projectId)) {
       if (needed.has(c.id) && !c.sheetAssetId) jobs.push(generateCharacterSheet(c.id))
@@ -425,6 +487,7 @@ export async function estimateCredits(
   seconds = 5,
   resolution?: string | null
 ): Promise<CreditEstimate | null> {
+  if (isFlowModel(modelId)) return null
   const model = kind === 'image' ? getImageModel(modelId) : getVideoModel(modelId)
   const body =
     kind === 'image'

@@ -6,8 +6,8 @@ import { getSettings, readCache, writeCache } from '../settings'
 import { isWav, pcmToWav } from './audio'
 import { extractJson } from './json'
 
-function client(key?: string): GoogleGenAI {
-  return new GoogleGenAI({ apiKey: key ?? requireSecret('gemini') })
+function client(key?: string, provider: 'gemini' | 'gemini-tts' = 'gemini'): GoogleGenAI {
+  return new GoogleGenAI({ apiKey: key ?? requireSecret(provider) })
 }
 
 function friendly(e: unknown): Error {
@@ -19,8 +19,8 @@ function friendly(e: unknown): Error {
   return new Error(`Gemini gagal: ${msg}`)
 }
 
-export async function testKey(key?: string): Promise<KeyTestResult> {
-  const k = key ?? getSecret('gemini')
+export async function testKey(key?: string, provider: 'gemini' | 'gemini-tts' = 'gemini'): Promise<KeyTestResult> {
+  const k = key ?? getSecret(provider)
   if (!k) return { ok: false, message: 'Kunci belum diatur' }
   try {
     const pager = await client(k).models.list({ config: { pageSize: 50 } })
@@ -36,7 +36,7 @@ const NOT_TEXT = /tts|embedding|imagen|image|veo|native-audio|live|aqa|transcrib
 export async function listModels(kind: 'text' | 'tts'): Promise<ModelOption[]> {
   const out: ModelOption[] = []
   try {
-    const pager = await client().models.list({ config: { pageSize: 200 } })
+    const pager = await client(undefined, kind === 'tts' ? 'gemini-tts' : 'gemini').models.list({ config: { pageSize: 200 } })
     for await (const m of pager) {
       const id = (m.name ?? '').replace(/^models\//, '')
       if (!id) continue
@@ -96,7 +96,7 @@ export async function generateJson(model: string, system: string, prompt: string
 /** Speaks one narration line. Returns a WAV file (24 kHz mono 16-bit). */
 export async function speak(text: string, voice: string, languageCode: string, signal?: AbortSignal): Promise<Buffer> {
   try {
-    const res = await client().models.generateContent({
+    const res = await client(undefined, 'gemini-tts').models.generateContent({
       model: getSettings().geminiTtsModel,
       contents: [
         {
@@ -152,7 +152,7 @@ export async function listVoices(): Promise<VoiceOption[]> {
     let page = ''
     for (let i = 0; i < 10; i++) {
       const url = `https://generativelanguage.googleapis.com/v1beta/voices?type=prebuilt&page_size=1000${page ? `&page_token=${encodeURIComponent(page)}` : ''}`
-      const res = await fetch(url, { headers: { 'x-goog-api-key': requireSecret('gemini') } })
+      const res = await fetch(url, { headers: { 'x-goog-api-key': requireSecret('gemini-tts') } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const body = (await res.json()) as { voices?: LibraryVoice[]; next_page_token?: string; nextPageToken?: string }
       for (const v of body.voices ?? []) {

@@ -150,6 +150,7 @@ Setiap bagian (penyusun cerita, suara narator) punya satu dropdown penyedia. Han
 | ElevenLabs | Suara narator dengan waktu per kata yang presisi | Opsional |
 
 - **Daftar model penyusun cerita** diambil langsung dari penyedia setelah kuncinya disimpan, lalu dipilih lewat dropdown yang bisa dicari.
+- **Kunci Gemini LLM dan Gemini TTS terpisah.** Kamu bisa memakai kunci yang berbeda; mengganti satu tidak mengubah yang lain.
 - **Endpoint custom** menerima server apa pun yang kompatibel dengan OpenAI API, misalnya:
   - Ollama (`http://localhost:11434/v1`);
   - LM Studio, vLLM, atau DeepSeek;

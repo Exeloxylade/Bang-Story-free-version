@@ -7,6 +7,43 @@ import { ModelPicker } from '../../components/ModelPicker'
 import { Segmented, Spinner } from '../../components/ui'
 import { creditLabel } from '../../lib/format'
 import { useEstimate, useEstimates } from '../../lib/useEstimate'
+import { defaultFlowModel, isFlowModel } from '@shared/media'
+import { Select } from '../../components/Select'
+import { useModels } from '../../lib/useModels'
+import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL } from '@shared/higgsfield'
+
+type ModelPatch = { imageModel?: string; videoModel?: string; videoResolution?: string | null }
+
+function FlowPicker({ kind, value, onChange }: { kind: 'image' | 'video'; value: string; onChange: (id: string) => void }) {
+  const { models, loading, error, refresh } = useModels(kind === 'image' ? 'flow2api-image' : 'flow2api-video', true)
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-line-2 bg-surface p-3">
+      <span className="text-sm font-semibold">Flow2API · {kind === 'image' ? 'Gambar klip' : 'Video AI'}</span>
+      <ModelPicker value={value} models={models} allowCustom loading={loading} error={error} onRefresh={() => void refresh()} onChange={id => onChange(isFlowModel(id) ? id : `flow2api:${id}`)} />
+      <p className="text-xs text-muted">{kind === 'image' ? 'Mendukung referensi lembar karakter.' : 'Pilih model i2v atau Omni untuk memakai gambar klip.'} Pilih model landscape untuk 16:9 atau portrait untuk 9:16; durasi video ditentukan model.</p>
+      <p className="text-xs text-muted">Pemakaian mengikuti akun Google Flow. Perkiraan kredit belum tersedia.</p>
+    </div>
+  )
+}
+
+export function ModelSection({ project, clipCount, perClip, onChange }: { project: Project; clipCount: number; perClip: number; onChange: (patch: ModelPatch) => void }) {
+  const imageFlow = isFlowModel(project.imageModel)
+  const videoFlow = isFlowModel(project.videoModel)
+  const options = [{ value: 'higgsfield', label: 'Higgsfield' }, { value: 'flow2api', label: 'Flow2API (Google Flow)' }]
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1"><span className="text-sm font-semibold">Penyedia gambar</span><Select label="Penyedia gambar" value={imageFlow ? 'flow2api' : 'higgsfield'} options={options} onChange={p => onChange({ imageModel: p === 'flow2api' ? defaultFlowModel('image', project.aspectRatio) : DEFAULT_IMAGE_MODEL })} /></div>
+        <div className="flex flex-col gap-1"><span className="text-sm font-semibold">Penyedia video</span><Select label="Penyedia video" value={videoFlow ? 'flow2api' : 'higgsfield'} options={options} onChange={p => onChange({ videoModel: p === 'flow2api' ? defaultFlowModel('video', project.aspectRatio) : DEFAULT_VIDEO_MODEL, videoResolution: null })} /></div>
+      </div>
+      {(imageFlow || videoFlow) && <div className="grid grid-cols-2 gap-3">
+        {imageFlow && <FlowPicker kind="image" value={project.imageModel!} onChange={id => onChange({ imageModel: id })} />}
+        {videoFlow && <FlowPicker kind="video" value={project.videoModel!} onChange={id => onChange({ videoModel: id, videoResolution: null })} />}
+      </div>}
+      {(!imageFlow || !videoFlow) && <HiggsfieldModels project={project} clipCount={clipCount} perClip={perClip} onChange={onChange} showImage={!imageFlow} showVideo={!videoFlow} />}
+    </div>
+  )
+}
 
 const IMAGE_OPTIONS = hfModelOptions('image')
 const VIDEO_OPTIONS = hfModelOptions('video')
@@ -58,32 +95,36 @@ function Card({ icon, title, children }: { icon: ReactNode; title: string; child
 }
 
 /** Which Higgsfield models draw and animate this project's clips. */
-export function ModelSection({
+function HiggsfieldModels({
   project,
   clipCount,
   perClip,
-  onChange
+  onChange,
+  showImage,
+  showVideo
 }: {
   project: Project
   clipCount: number
   perClip: number
-  onChange: (patch: { imageModel?: string; videoModel?: string; videoResolution?: string | null }) => void
+  onChange: (patch: ModelPatch) => void
+  showImage: boolean
+  showVideo: boolean
 }) {
   const image = getImageModel(project.imageModel)
   const video = getVideoModel(project.videoModel)
   const seconds = fitDuration(video, perClip) ?? perClip
-  const imageCost = useEstimate('image', image.id, project.aspectRatio)
+  const imageCost = useEstimate('image', project.imageModel ?? image.id, project.aspectRatio)
   const resolutions = resolutionOptions(video)
   const resolution = effectiveResolution(video, project.videoResolution)
-  const videoCost = useEstimate('video', video.id, project.aspectRatio, perClip, resolution)
+  const videoCost = useEstimate('video', project.videoModel ?? video.id, project.aspectRatio, perClip, resolution)
   const [hasKey, setHasKey] = useState<boolean | null>(null)
 
   useEffect(() => {
     void window.api.settings.keys().then((keys) => setHasKey(!!keys.find((k) => k.provider === 'higgsfield')?.configured))
   }, [])
 
-  const imageCosts = useEstimates('image', IMAGE_IDS, project.aspectRatio, undefined, hasKey === true)
-  const videoCosts = useEstimates('video', VIDEO_IDS, project.aspectRatio, perClip, hasKey === true)
+  const imageCosts = useEstimates('image', IMAGE_IDS, project.aspectRatio, undefined, hasKey === true && showImage)
+  const videoCosts = useEstimates('video', VIDEO_IDS, project.aspectRatio, perClip, hasKey === true && showVideo)
   const imageModels = useMemo(() => withCosts(IMAGE_OPTIONS, imageCosts, () => '', hasKey === true), [imageCosts, hasKey])
   const videoModels = useMemo(
     () => withCosts(VIDEO_OPTIONS, videoCosts, (id) => `${fitDuration(getVideoModel(id), perClip)} dtk`, hasKey === true),
@@ -99,7 +140,7 @@ export function ModelSection({
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Card icon={<ImageIcon className="size-4" />} title="Gambar klip">
+        {showImage && <Card icon={<ImageIcon className="size-4" />} title="Gambar klip">
           <ModelPicker
             value={image.id}
             models={imageModels}
@@ -125,8 +166,8 @@ export function ModelSection({
               ? 'Pakai lembar karakter, jadi wajah dan kostum tokoh tetap sama di tiap klip.'
               : 'Tanpa lembar karakter, jadi tampilan tokoh bisa sedikit berubah antar klip.'}
           </p>
-        </Card>
-        <Card icon={<Film className="size-4" />} title="Video AI">
+        </Card>}
+        {showVideo && <Card icon={<Film className="size-4" />} title="Video AI">
           <ModelPicker
             value={video.id}
             models={videoModels}
@@ -165,7 +206,7 @@ export function ModelSection({
             <Move className="mt-px size-3.5 shrink-0" />
             Hanya untuk klip yang kamu jadikan Video AI. Gerak kamera tetap gratis.
           </p>
-        </Card>
+        </Card>}
       </div>
     </div>
   )

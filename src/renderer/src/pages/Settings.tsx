@@ -25,6 +25,9 @@ import { ProviderLogo, type ProviderLogoId } from '../components/ProviderLogo'
 import { Select } from '../components/Select'
 import { AboutSection } from './AboutSection'
 import { WhisperSection } from './WhisperSection'
+import { FlowSetupSection } from './FlowSetupSection'
+import { defaultFlowModel, isFlowModel } from '@shared/media'
+import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL } from '@shared/higgsfield'
 import { Badge, Button, Field, IconButton, confirmDialog, cx, inputCls } from '../components/ui'
 import { errorText, relativeTime } from '../lib/format'
 import { useModels } from '../lib/useModels'
@@ -401,7 +404,7 @@ function LlmSection({ settings, statusOf, onChanged, onSettings }: { settings: A
           name={spec.name}
           status={status}
           help={provider === 'custom' ? 'Contoh: http://localhost:11434/v1 untuk Ollama, http://localhost:1234/v1 untuk LM Studio, https://api.x.ai/v1 untuk Grok.' : 'Setelah kunci disimpan, daftar model diambil langsung dari penyedianya.'}
-          hint={provider === 'gemini' && settings.defaultTtsProvider === 'gemini' ? 'Kunci ini dipakai bersama untuk suara narator Gemini TTS.' : undefined}
+          hint={provider === 'gemini' ? 'Kunci ini hanya dipakai untuk penyusun cerita. Kunci suara narator diatur terpisah.' : undefined}
           link={spec.link}
           linkLabel={spec.linkLabel}
           customUrl={settings.customBaseUrl}
@@ -447,7 +450,8 @@ function LlmSection({ settings, statusOf, onChanged, onSettings }: { settings: A
 
 function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: AppSettings; statusOf: (p: ApiProvider) => KeyStatus | undefined; onChanged: () => void; onSettings: (s: AppSettings) => void }) {
   const provider = settings.defaultTtsProvider
-  const status = statusOf(provider)
+  const keyProvider = provider === 'gemini' ? 'gemini-tts' : provider
+  const status = statusOf(keyProvider)
   const ready = !!status?.configured && status.lastOk !== false
   const models = useModels(provider === 'gemini' ? 'gemini-tts' : 'elevenlabs', ready)
   const options: ProviderOption<TtsProvider>[] = [
@@ -456,7 +460,7 @@ function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: A
       name: 'Gemini TTS',
       note: 'Suara Google Gemini, 30 pilihan suara, mendukung bahasa Indonesia.',
       logo: 'gemini',
-      status: statusOf('gemini')
+      status: statusOf('gemini-tts')
     },
     {
       id: 'elevenlabs',
@@ -477,11 +481,11 @@ function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: A
       <ProviderSelect value={provider} options={options} onChange={async (id) => onSettings(await window.api.settings.set({ defaultTtsProvider: id }))} />
       <Card key={provider}>
         <KeyForm
-          provider={provider}
+          provider={keyProvider}
           name={provider === 'gemini' ? 'Google Gemini' : 'ElevenLabs'}
           status={status}
           help={provider === 'gemini' ? 'Kunci Gemini dari Google AI Studio.' : 'Kunci API dari akun ElevenLabs.'}
-          hint={provider === 'gemini' && settings.llmProvider === 'gemini' ? 'Kunci ini dipakai bersama dengan penyusun cerita Gemini.' : undefined}
+          hint={provider === 'gemini' ? 'Kunci ini hanya dipakai untuk suara narator. Kamu bisa memakai kunci yang berbeda dari penyusun cerita.' : undefined}
           link={provider === 'gemini' ? 'https://aistudio.google.com/apikey' : 'https://elevenlabs.io/app/settings/api-keys'}
           linkLabel={provider === 'gemini' ? 'Buat kunci di Google AI Studio' : 'Buat kunci di ElevenLabs'}
           onChanged={onChanged}
@@ -546,6 +550,39 @@ function HiggsfieldSection({ status, onChanged }: { status?: KeyStatus; onChange
       </Card>
     </>
   )
+}
+
+function FlowSection({ settings, status, onChanged }: { settings: AppSettings; status?: KeyStatus; onChanged: () => void }) {
+  const [url, setUrl] = useState(settings.flowBaseUrl)
+  const { toast } = useApp()
+  const save = async (): Promise<void> => {
+    try { await window.api.settings.set({ flowBaseUrl: url }); onChanged(); toast('success', 'Alamat Flow2API disimpan') }
+    catch (e) { toast('error', errorText(e)) }
+  }
+  const defaults = async (kind: 'image' | 'video', provider: string): Promise<void> => {
+    try {
+      await window.api.settings.set(kind === 'image' ? { imageModel: provider === 'flow2api' ? defaultFlowModel(kind, '16:9') : DEFAULT_IMAGE_MODEL } : { videoModel: provider === 'flow2api' ? defaultFlowModel(kind, '16:9') : DEFAULT_VIDEO_MODEL })
+      onChanged()
+    } catch (e) { toast('error', errorText(e)) }
+  }
+  return <>
+    <SectionTitle icon={<Film className="size-5" />} title="Flow2API (Google Flow)" sub="Jalankan server Flow2API dan hubungkan akun Google Flow lewat server tersebut." />
+    <Card>
+      <FlowSetupSection settings={settings} onChanged={onChanged} />
+      {!settings.flowLocalEnabled && <>
+      <Field label="Alamat server Flow2API">
+        <div className="flex gap-2"><input className={cx(inputCls, 'min-w-0 flex-1')} value={url} onChange={e => setUrl(e.target.value)} placeholder="http://localhost:8000" /><Button onClick={() => void save()}>Simpan alamat</Button></div>
+      </Field>
+      <KeyForm provider="flow2api" name="Flow2API" status={status} help="Masukkan kunci API server Flow2API, bukan kunci Gemini atau token login Google. Simpan alamat server sebelum mengecek kunci." link="https://github.com/TheSmallHanCat/flow2api" linkLabel="Buka Flow2API" onChanged={onChanged} />
+      </>}
+      <div className="grid grid-cols-2 gap-3">
+        {(['image', 'video'] as const).map(kind => <Field key={kind} label={kind === 'image' ? 'Penyedia gambar proyek baru' : 'Penyedia video proyek baru'}>
+          <Select label={kind === 'image' ? 'Penyedia gambar proyek baru' : 'Penyedia video proyek baru'} value={isFlowModel(kind === 'image' ? settings.imageModel : settings.videoModel) ? 'flow2api' : 'higgsfield'} options={[{ value: 'higgsfield', label: 'Higgsfield' }, { value: 'flow2api', label: 'Flow2API' }]} onChange={p => void defaults(kind, p)} />
+        </Field>)}
+      </div>
+      <p className="text-xs text-muted">Model gambar dan video bisa dipilih terpisah di langkah Ide cerita. Login Google dan kuota dikelola di server Flow2API.</p>
+    </Card>
+  </>
 }
 
 export function Settings() {
@@ -618,6 +655,7 @@ export function Settings() {
                 <LlmSection settings={settings} statusOf={statusOf} onChanged={reload} onSettings={setSettings} />
                 <TtsSection settings={settings} statusOf={statusOf} onChanged={reload} onSettings={setSettings} />
                 <HiggsfieldSection status={statusOf('higgsfield')} onChanged={reload} />
+                <FlowSection settings={settings} status={statusOf('flow2api')} onChanged={reload} />
                 <WhisperSection settings={settings} onSettings={setSettings} />
               </>
             )}

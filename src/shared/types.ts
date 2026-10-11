@@ -2,9 +2,9 @@ export type ProjectStatus = 'draft' | 'script' | 'storyboard' | 'editing' | 'exp
 export type AspectRatio = '16:9' | '9:16'
 export type TtsProvider = 'gemini' | 'elevenlabs'
 export type LlmProvider = 'gemini' | 'openrouter' | 'groq' | 'custom'
-export type ApiProvider = 'higgsfield' | 'gemini' | 'elevenlabs' | 'openrouter' | 'groq' | 'custom'
+export type ApiProvider = 'higgsfield' | 'flow2api' | 'gemini' | 'gemini-tts' | 'elevenlabs' | 'openrouter' | 'groq' | 'custom'
 /** Where a live model list comes from: an LLM provider, or a TTS catalog. */
-export type ModelSource = LlmProvider | 'gemini-tts' | 'elevenlabs'
+export type ModelSource = LlmProvider | 'gemini-tts' | 'elevenlabs' | 'flow2api-image' | 'flow2api-video'
 export type MotionType = 'camera' | 'video'
 export type CameraPresetId = 'zoomin' | 'zoomout' | 'panleft' | 'panright' | 'kenburns' | 'shake' | 'static'
 export type MotionStrength = 'halus' | 'sedang' | 'kuat'
@@ -285,9 +285,11 @@ export interface AppSettings {
   llmModels: Record<LlmProvider, string>
   /** Base URL of an OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 */
   customBaseUrl: string
+  flowBaseUrl: string
+  flowLocalEnabled: boolean
   geminiTtsModel: string
   elevenModel: string
-  /** Higgsfield models for new projects: the last ones picked in the Idea step. */
+  /** Media models for new projects; Flow2API IDs have a flow2api: prefix. */
   imageModel: string
   videoModel: string
   /** Time captions against the real voice with Whisper after narration is made (when the model is present). */
@@ -306,6 +308,16 @@ export interface WhisperStatus {
   received: number
   total: number
   error: string | null
+}
+
+export interface FlowSetupStatus {
+  state: 'unsupported' | 'missing' | 'installing' | 'installed' | 'starting' | 'running' | 'error'
+  installed: boolean
+  progress: number
+  message: string
+  error: string | null
+  accountReady: boolean
+  activeAccounts: number
 }
 
 export interface ModelOption {

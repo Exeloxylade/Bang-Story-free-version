@@ -3,7 +3,7 @@ import { emit } from './events'
 import { getJobRaw, updateJob } from './repo'
 import { cancelRequest } from './services/higgsfield'
 
-export type QueueName = 'higgsfield' | 'tts' | 'whisper' | 'export'
+export type QueueName = 'higgsfield' | 'flow2api' | 'flow2api-sheet' | 'tts' | 'whisper' | 'export'
 
 export interface TaskCtx {
   jobId: string
@@ -16,9 +16,10 @@ export interface TaskCtx {
 export type Task = (ctx: TaskCtx) => Promise<string | void | { message: string }>
 
 // Whisper uses most CPU cores by itself, so it runs one file at a time.
-const LIMITS: Record<QueueName, number> = { higgsfield: 3, tts: 2, whisper: 1, export: 1 }
-const running: Record<QueueName, number> = { higgsfield: 0, tts: 0, whisper: 0, export: 0 }
-const waiting: Record<QueueName, (() => void)[]> = { higgsfield: [], tts: [], whisper: [], export: [] }
+// Sheets need their own lane: a scene may wait for a sheet queued after it.
+const LIMITS: Record<QueueName, number> = { higgsfield: 3, flow2api: 1, 'flow2api-sheet': 1, tts: 2, whisper: 1, export: 1 }
+const running: Record<QueueName, number> = { higgsfield: 0, flow2api: 0, 'flow2api-sheet': 0, tts: 0, whisper: 0, export: 0 }
+const waiting: Record<QueueName, (() => void)[]> = { higgsfield: [], flow2api: [], 'flow2api-sheet': [], tts: [], whisper: [], export: [] }
 const controllers = new Map<string, AbortController>()
 
 function acquire(q: QueueName): Promise<void> {

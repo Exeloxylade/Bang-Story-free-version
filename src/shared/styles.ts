@@ -37,6 +37,18 @@ export const VISUAL_STYLES: VisualStyle[] = [
     characterHint: 'a stickman figure with a round white head and thin black line limbs, wearing role-specific costume pieces'
   },
   {
+    id: 'stickman-minimalist',
+    name: 'Stickman minimalist',
+    category: '2d',
+    niche: 'Sejarah, kisah nyata, edukasi',
+    swatch: '#F5DFC2',
+    ink: '#1F1D1A',
+    prompt:
+      'Minimalist 2D flat vector illustration frame for a YouTube storytelling video. ALL characters are extremely simple STICKMAN figures: a single thin black line torso, thin black line arms and legs, plain round white heads, two small dot eyes and at most one short line for the mouth. No realistic anatomy, filled-in bodies, detailed hands, fingers, muscles, nose, ears, detailed hair or elaborate facial features. Keep the stick body and limbs fully visible. Use at most one small role-defining accessory per character, only when essential to identify them; no layered clothing or decorative costume detail. Distinguish recurring characters with a simple silhouette or one small color accent. Retain colorful flat backgrounds, simplified into a few readable shapes with generous negative space and only essential scene details; no visual clutter, gradients or detailed textures. Clean consistent line weight, flat colors, clear storytelling composition, every character in the same minimalist stickman style. ' +
+      NO_TEXT,
+    characterHint: 'an extremely simple stickman with a plain round white head, two dot eyes, at most a short line mouth, a thin black line torso and limbs, no detailed anatomy or clothing, and at most one essential small identifying accessory'
+  },
+  {
     id: 'flat',
     name: 'Kartun flat',
     category: '2d',

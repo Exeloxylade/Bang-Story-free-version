@@ -1,5 +1,6 @@
 import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getImageModel, getVideoModel } from '@shared/higgsfield'
 import type { AppSettings } from '@shared/types'
+import { isFlowModel } from '@shared/media'
 import { getDb } from './db'
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -9,6 +10,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   llmProvider: 'gemini',
   llmModels: { gemini: 'gemini-3.8-flash', openrouter: '', groq: '', custom: '' },
   customBaseUrl: '',
+  flowBaseUrl: 'http://localhost:8000',
+  flowLocalEnabled: false,
   geminiTtsModel: 'gemini-3.8-flash-tts',
   elevenModel: 'eleven_multilingual_v2',
   imageModel: DEFAULT_IMAGE_MODEL,
@@ -28,12 +31,21 @@ export function getSettings(): AppSettings {
   // A provider that no longer exists (e.g. from an older build) falls back to Gemini.
   if (!(out.llmProvider in DEFAULT_SETTINGS.llmModels)) out.llmProvider = 'gemini'
   // Models dropped from the Higgsfield catalog fall back to the defaults.
-  out.imageModel = getImageModel(out.imageModel).id
-  out.videoModel = getVideoModel(out.videoModel).id
+  if (!isFlowModel(out.imageModel)) out.imageModel = getImageModel(out.imageModel).id
+  if (!isFlowModel(out.videoModel)) out.videoModel = getVideoModel(out.videoModel).id
   return out
 }
 
 export function setSettings(patch: Partial<AppSettings>): AppSettings {
+  if (patch.flowBaseUrl !== undefined) {
+    const url = new URL(patch.flowBaseUrl.trim())
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)
+      throw new Error('Alamat Flow2API harus berupa URL http:// atau https:// tanpa kredensial.')
+    patch = { ...patch, flowBaseUrl: url.toString().replace(/\/+$/, '').replace(/\/v1$/, '') }
+    dropCache('models:flow2api-')
+    getDb().prepare("UPDATE secrets SET last_ok = NULL, last_message = NULL, checked_at = NULL WHERE provider = 'flow2api'").run()
+  }
+  if (patch.flowLocalEnabled !== undefined) dropCache('models:flow2api-')
   const current = getSettings()
   const stmt = getDb().prepare(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'

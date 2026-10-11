@@ -96,7 +96,8 @@ export function Home() {
       return !!k?.configured && k.lastOk !== false
     }
     const issues: { what: string; blocks: string }[] = []
-    if (!ok('higgsfield')) issues.push({ what: 'kunci Higgsfield', blocks: 'gambar' })
+    const imageProvider = appSettings.imageModel.startsWith('flow2api:') ? 'flow2api' : 'higgsfield'
+    if (!ok(imageProvider)) issues.push({ what: imageProvider === 'flow2api' ? 'kunci Flow2API' : 'kunci Higgsfield', blocks: 'gambar' })
     const llm = appSettings.llmProvider
     if (!ok(llm)) issues.push({ what: `kunci ${llmName(llm)}`, blocks: 'cerita' })
     else if (!appSettings.llmModels[llm]) issues.push({ what: `model ${llmName(llm)}`, blocks: 'cerita' })

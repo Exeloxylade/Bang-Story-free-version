@@ -7,6 +7,7 @@ import type {
   ClipPatchEvent,
   CreditEstimate,
   WhisperStatus,
+  FlowSetupStatus,
   WordTiming,
   ExportOptions,
   Job,
@@ -100,6 +101,17 @@ export interface StudioApi {
     copyText(text: string): Promise<void>
     version(): Promise<string>
   }
+  flowSetup: {
+    status(): Promise<FlowSetupStatus>
+    install(): Promise<void>
+    cancel(): Promise<void>
+    start(): Promise<void>
+    stop(): Promise<void>
+    setEnabled(enabled: boolean): Promise<void>
+    openPanel(): Promise<void>
+    check(): Promise<FlowSetupStatus>
+    useDefaults(): Promise<void>
+  }
   whisper: {
     status(): Promise<WhisperStatus>
     download(): Promise<void>
@@ -108,6 +120,7 @@ export interface StudioApi {
     openFolder(): Promise<void>
   }
   on: {
+    flow(cb: (status: FlowSetupStatus) => void): () => void
     whisper(cb: (status: WhisperStatus) => void): () => void
     job(cb: (job: Job) => void): () => void
     clip(cb: (e: ClipPatchEvent) => void): () => void
@@ -121,5 +134,6 @@ export const EVENTS = {
   clip: 'event:clip',
   character: 'event:character',
   asset: 'event:asset',
+  flow: 'event:flow',
   whisper: 'event:whisper'
 } as const

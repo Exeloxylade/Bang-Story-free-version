@@ -8,6 +8,26 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 
 ## [Belum dirilis]
 
+### Ditambahkan
+- Preset **Stickman minimalist**: karakter garis sederhana dengan wajah dan aksesori minimal, serta latar
+  berwarna yang lebih sederhana.
+- Pilihan Flow2API untuk gambar dan video, terpisah dari Higgsfield: alamat server, kunci API, daftar model
+  langsung dari server, dan model custom.
+- Flow2API lokal opsional di Pengaturan untuk Windows 64-bit: pemasangan Python, server dan browser otomatis,
+  kontrol jalankan/hentikan, panel akun, panduan login Google Flow, dan pemeriksaan akun tanpa generasi media.
+- Pilihan penyedia gambar/video bawaan untuk proyek baru. Proyek yang sudah ada bisa mengganti penyedia
+  dan model di langkah Ide cerita.
+
+### Catatan
+- Flow2API memakai sesi akun dan kuota Google Flow pengguna. Pemeriksaan akun tidak memastikan bahwa
+  generasi media akan berhasil; sesi, kuota, dan layanan Google tetap memengaruhi hasil.
+- Perubahan Flow2API dan preset ditinjau pada kode; pengujian aplikasi dan build diserahkan kepada pengguna.
+
+
+### Diperbaiki
+- Kunci Gemini untuk penyusun cerita dan Gemini TTS disimpan terpisah. Mengubah atau menghapus satu kunci tidak
+  lagi mengubah kunci lainnya; kunci lama disalin sekali untuk menjaga narasi saat aplikasi diperbarui.
+
 ## [1.0.0] - 2026-10-02
 
 Rilis pertama Bang Story (sebelumnya bernama Studio Cerita).

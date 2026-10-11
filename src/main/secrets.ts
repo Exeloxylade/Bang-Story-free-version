@@ -3,11 +3,16 @@ import type { ApiProvider, KeyStatus } from '@shared/types'
 import { getDb } from './db'
 import { getSettings } from './settings'
 
-const PROVIDERS: ApiProvider[] = ['higgsfield', 'gemini', 'elevenlabs', 'openrouter', 'groq', 'custom']
+const PROVIDERS: ApiProvider[] = ['higgsfield', 'flow2api', 'gemini', 'gemini-tts', 'elevenlabs', 'openrouter', 'groq', 'custom']
+type SecretProvider = ApiProvider | 'flow2api-local' | 'flow2api-admin'
 
-export const PROVIDER_NAMES: Record<ApiProvider, string> = {
+export const PROVIDER_NAMES: Record<SecretProvider, string> = {
   higgsfield: 'Higgsfield',
+  flow2api: 'Flow2API',
+  'flow2api-local': 'Flow2API lokal',
+  'flow2api-admin': 'panel Flow2API lokal',
   gemini: 'Google Gemini',
+  'gemini-tts': 'Gemini TTS',
   elevenlabs: 'ElevenLabs',
   openrouter: 'OpenRouter',
   groq: 'Groq',
@@ -15,7 +20,7 @@ export const PROVIDER_NAMES: Record<ApiProvider, string> = {
 }
 
 interface SecretRow {
-  provider: ApiProvider
+  provider: SecretProvider
   value: Buffer
   last_ok: number | null
   last_message: string | null
@@ -48,11 +53,11 @@ function mask(key: string): string {
   return `${key.slice(0, Math.min(8, Math.floor(key.length / 3)))}${'•'.repeat(10)}${key.slice(-4)}`
 }
 
-function row(provider: ApiProvider): SecretRow | undefined {
+function row(provider: SecretProvider): SecretRow | undefined {
   return getDb().prepare('SELECT * FROM secrets WHERE provider = ?').get(provider) as SecretRow | undefined
 }
 
-export function setSecret(provider: ApiProvider, value: string): void {
+export function setSecret(provider: SecretProvider, value: string): void {
   const enc = safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(value) : Buffer.from(value, 'utf8')
   getDb()
     .prepare(
@@ -62,7 +67,7 @@ export function setSecret(provider: ApiProvider, value: string): void {
     .run(provider, enc)
 }
 
-export function getSecret(provider: ApiProvider): string | null {
+export function getSecret(provider: SecretProvider): string | null {
   const r = row(provider)
   if (!r || r.value.length === 0) return null
   const value = decrypt(r.value)
@@ -73,7 +78,7 @@ export function getSecret(provider: ApiProvider): string | null {
   return value
 }
 
-export function requireSecret(provider: ApiProvider): string {
+export function requireSecret(provider: SecretProvider): string {
   const key = getSecret(provider)
   if (!key) throw new Error(`Kunci API ${PROVIDER_NAMES[provider]} belum diatur. Buka Pengaturan untuk menambahkannya.`)
   return key
@@ -90,7 +95,7 @@ export function clearSecret(provider: ApiProvider): void {
 }
 
 /** Test results for the custom endpoint are kept even when it has no key (local servers). */
-export function recordCheck(provider: ApiProvider, ok: boolean, message: string): void {
+export function recordCheck(provider: SecretProvider, ok: boolean, message: string): void {
   const now = Date.now()
   const res = getDb()
     .prepare('UPDATE secrets SET last_ok = ?, last_message = ?, checked_at = ? WHERE provider = ?')
@@ -106,7 +111,7 @@ export function keyStatuses(): KeyStatus[] {
   const rows = getDb().prepare('SELECT * FROM secrets').all() as SecretRow[]
   const customUrl = getSettings().customBaseUrl.trim()
   return PROVIDERS.map((provider) => {
-    const r = rows.find((x) => x.provider === provider)
+    const r = rows.find((x) => x.provider === (provider === 'flow2api' && getSettings().flowLocalEnabled ? 'flow2api-local' : provider))
     const hasKey = !!r && r.value.length > 0
     const value = hasKey ? decrypt(r!.value) : null
     const unreadable = hasKey && value == null
