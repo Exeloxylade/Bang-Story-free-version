@@ -566,21 +566,22 @@ function FlowSection({ settings, status, onChanged }: { settings: AppSettings; s
     } catch (e) { toast('error', errorText(e)) }
   }
   return <>
-    <SectionTitle icon={<Film className="size-5" />} title="Flow2API (Google Flow)" sub="Jalankan server Flow2API dan hubungkan akun Google Flow lewat server tersebut." />
+    <SectionTitle icon={<Film className="size-5" />} title="Google Flow" sub="Hubungkan akun Google untuk membuat gambar dan video. Tambahkan akun lain kapan saja." />
     <Card>
       <FlowSetupSection settings={settings} onChanged={onChanged} />
-      {!settings.flowLocalEnabled && <>
+      {!settings.flowLocalEnabled && <details className="space-y-3">
+      <summary className="cursor-pointer text-sm font-semibold">Pakai server Flow2API sendiri</summary>
       <Field label="Alamat server Flow2API">
         <div className="flex gap-2"><input className={cx(inputCls, 'min-w-0 flex-1')} value={url} onChange={e => setUrl(e.target.value)} placeholder="http://localhost:8000" /><Button onClick={() => void save()}>Simpan alamat</Button></div>
       </Field>
       <KeyForm provider="flow2api" name="Flow2API" status={status} help="Masukkan kunci API server Flow2API, bukan kunci Gemini atau cookie login Google. Simpan alamat server sebelum mengecek kunci." link="https://github.com/Exeloxylade/flow2api-English" linkLabel="Buka Flow2API English" onChanged={onChanged} />
-      </>}
+      </details>}
       <div className="grid grid-cols-2 gap-3">
         {(['image', 'video'] as const).map(kind => <Field key={kind} label={kind === 'image' ? 'Penyedia gambar proyek baru' : 'Penyedia video proyek baru'}>
           <Select label={kind === 'image' ? 'Penyedia gambar proyek baru' : 'Penyedia video proyek baru'} value={isFlowModel(kind === 'image' ? settings.imageModel : settings.videoModel) ? 'flow2api' : 'higgsfield'} options={[{ value: 'higgsfield', label: 'Higgsfield' }, { value: 'flow2api', label: 'Flow2API' }]} onChange={p => void defaults(kind, p)} />
         </Field>)}
       </div>
-      <p className="text-xs text-muted">Model gambar dan video bisa dipilih terpisah di langkah Ide cerita. Login Google dan kuota dikelola di server Flow2API.</p>
+      <p className="text-xs text-muted">Model gambar dan video bisa dipilih terpisah di langkah Ide cerita. Kuota mengikuti akun Google Flow kamu.</p>
     </Card>
   </>
 }

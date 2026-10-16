@@ -12,6 +12,7 @@ import { getSettings, setSettings } from './settings'
 import { emit } from './events'
 import { sleep } from './services/http'
 import { replaceFlowSource } from './flowSource'
+import { captureFlowLogin, removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
@@ -36,7 +37,10 @@ let setup: AbortController | null = null
 let stopping = false
 let panel: BrowserWindow | null = null
 let adminSession: string | null = null
-let status: FlowSetupStatus = { state: 'missing', installed: false, progress: 0, message: 'Belum dipasang', error: null, accountReady: false, activeAccounts: 0 }
+let connection: AbortController | null = null
+let installation: Promise<void> | null = null
+let startup: Promise<void> | null = null
+let status: FlowSetupStatus = { state: 'missing', installed: false, progress: 0, message: 'Belum dipasang', error: null, accountReady: false, activeAccounts: 0, connecting: false, accounts: [] }
 
 function report(patch: Partial<FlowSetupStatus>): void {
   status = { ...status, ...patch, installed: installed() }
@@ -94,11 +98,16 @@ async def reload_config(self):
 Database.reload_config_to_memory = reload_config
 import uvicorn
 from src.main import app
+# Bang Story owns the interactive login; the captcha browser uses registered account cookies.
+from src.services.browser_captcha_personal import BrowserCaptchaService
+async def managed_login(self):
+    pass
+BrowserCaptchaService.open_login_window = managed_login
 uvicorn.run(app, host='127.0.0.1', port=8765, log_level='error', access_log=False)
 `
 
-export function installFlow(): void {
-  if (setup) return
+export function installFlow(): Promise<void> {
+  if (installation) return installation
   if (!getSettings().flowLocalEnabled) throw new Error('Aktifkan Flow2API lokal dulu.')
   if (flowSetupStatus().state === 'unsupported') throw new Error('Pemasangan otomatis membutuhkan Windows 64-bit.')
   if (server) throw new Error('Hentikan Flow2API dulu sebelum memasang ulang.')
@@ -106,7 +115,7 @@ export function installFlow(): void {
   setup = ctrl
   mkdirSync(root(), { recursive: true })
   report({ state: 'installing', progress: 0.05, message: 'Mengunduh Python untuk Flow2API', error: null })
-  void (async () => {
+  installation = (async () => {
     const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(30 * 60 * 1000)])
     try {
       if (!existsSync(python())) {
@@ -128,9 +137,10 @@ export function installFlow(): void {
       writeFileSync(join(source(), 'bang-story-runner.py'), RUNNER)
       writeFileSync(join(root(), 'installed.json'), JSON.stringify({ repository: FLOW_REPOSITORY, revision: REV }))
       report({ state: 'installed', progress: 1, message: 'Terpasang. Jalankan Flow2API untuk menghubungkan akun Google.', error: null })
-    } catch (e) { report({ state: installed() ? 'installed' : 'error', error: (e as Error).message, message: 'Pemasangan belum selesai' }) }
-    finally { setup = null }
+    } catch (e) { report({ state: installed() ? 'installed' : 'error', error: (e as Error).message, message: 'Pemasangan belum selesai' }); throw e }
+    finally { setup = null; installation = null }
   })()
+  return installation
 }
 
 export function cancelFlowInstall(): void { setup?.abort(); killTree(worker) }
@@ -153,6 +163,16 @@ function chromium(): string {
   throw new Error('Browser belum terpasang. Klik Pasang lagi.')
 }
 
+function loginBrowser(): string {
+  // A private app profile keeps the user's ordinary browser sessions untouched.
+  for (const base of [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]) {
+    if (!base) continue
+    const chrome = join(base, 'Google', 'Chrome', 'Application', 'chrome.exe')
+    if (existsSync(chrome)) return chrome
+  }
+  return chromium()
+}
+
 async function login(): Promise<string> {
   if (!server || status.state !== 'running') throw new Error('Jalankan Flow2API lokal dulu.')
   if (adminSession) return adminSession
@@ -170,16 +190,23 @@ export async function checkFlowAccount(): Promise<FlowSetupStatus> {
     const auth = await login()
     const res = await fetch(`${LOCAL_FLOW_URL}/api/tokens`, { headers: { Authorization: `Bearer ${auth}` }, signal: AbortSignal.timeout(10_000) })
     if (!res.ok) { adminSession = null; throw new Error('Akun belum bisa diperiksa. Coba lagi.') }
-    const tokens = await res.json() as { is_active?: boolean; at?: string; at_expired?: boolean }[]
+    const tokens = await res.json() as { id: number; email: string; is_active?: boolean; at?: string; at_expired?: boolean }[]
+    if (!Array.isArray(tokens)) throw new Error('Daftar akun tidak valid')
     if (server !== child || stopping) return flowSetupStatus()
     const count = tokens.filter(t => t.is_active && !!t.at && !t.at_expired).length
     recordCheck('flow2api-local', count > 0, count ? 'Akun Flow terhubung' : 'Hubungkan akun Flow dulu')
-    report({ accountReady: count > 0, activeAccounts: count, error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : 'Login Google Flow, lalu tambahkan akun aktif di panel Flow2API.' })
-  } catch { if (server && !stopping) { recordCheck('flow2api-local', false, 'Akun belum bisa diperiksa'); report({ accountReady: false, activeAccounts: 0, error: 'Akun belum bisa diperiksa. Buka panel atau coba lagi.' }) } }
+    report({ accountReady: count > 0, activeAccounts: count, accounts: tokens.map(t => ({ id: t.id, email: t.email, enabled: !!t.is_active, ready: !!t.is_active && !!t.at && !t.at_expired })), error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : 'Klik Hubungkan Google Flow untuk login.' })
+  } catch { if (server && !stopping) { recordCheck('flow2api-local', false, 'Akun belum bisa diperiksa'); report({ accountReady: false, activeAccounts: 0, accounts: status.accounts.map(a => ({ ...a, ready: false })), error: 'Akun belum bisa diperiksa. Buka panel atau coba lagi.' }) } }
   return flowSetupStatus()
 }
 
-export async function startFlow(): Promise<void> {
+export function startFlow(): Promise<void> {
+  if (startup) return startup
+  startup = startFlowServer().finally(() => { startup = null })
+  return startup
+}
+
+async function startFlowServer(): Promise<void> {
   if (server || status.state === 'starting') return
   if (!getSettings().flowLocalEnabled) throw new Error('Aktifkan Flow2API lokal dulu.')
   if (!installed() || setup) throw new Error('Pasang Flow2API sampai selesai dulu.')
@@ -206,10 +233,11 @@ export async function startFlow(): Promise<void> {
       await sleep(1000)
     }
     throw new Error('Flow2API belum siap. Tutup browser login setelah selesai, lalu coba lagi.')
-  } catch (e) { if (stopping) return; stopFlow(); report({ state: 'error', error: (e as Error).message, message: 'Belum bisa dijalankan' }) }
+  } catch (e) { if (stopping) return; stopFlow(false); report({ state: 'error', error: (e as Error).message, message: 'Belum bisa dijalankan' }) }
 }
 
-export function stopFlow(): void {
+export function stopFlow(cancelConnection = true): void {
+  if (cancelConnection) cancelFlowConnect()
   stopping = true
   const child = server
   server = null
@@ -218,7 +246,90 @@ export function stopFlow(): void {
   panel = null
   killTree(child)
   try { if (getSecret('flow2api-local')) recordCheck('flow2api-local', false, 'Flow2API lokal dihentikan') } catch { /* Shutdown must still terminate the server if a saved key is unreadable. */ }
-  report({ state: installed() ? 'installed' : 'missing', accountReady: false, activeAccounts: 0, message: 'Flow2API dihentikan', error: null })
+  report({ state: installed() ? 'installed' : 'missing', accountReady: false, activeAccounts: 0, accounts: [], message: 'Flow2API dihentikan', error: null })
+}
+
+export function cancelFlowConnect(): void {
+  connection?.abort()
+  cancelFlowInstall()
+  if (connection && status.state === 'starting') stopFlow(false)
+}
+
+async function accountRequest(path: string, method: string, body?: unknown, signal?: AbortSignal): Promise<void> {
+  const auth = await login()
+  const res = await fetch(`${LOCAL_FLOW_URL}/api/tokens${path}`, {
+    method, headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(30_000)
+  })
+  // Upstream errors can contain credentials. Only a safe, fixed message crosses IPC.
+  if (!res.ok) {
+    if (res.status === 401) adminSession = null
+    throw new Error('Akun belum bisa disimpan. Pastikan akun bisa membuka Google Flow, lalu coba lagi.')
+  }
+  const result = await res.json() as { success?: boolean }
+  if (!result.success) throw new Error('Perubahan akun belum berhasil. Periksa akun lalu coba lagi.')
+}
+
+export async function connectFlowAccount(accountId?: number): Promise<void> {
+  if (connection) throw new Error('Selesaikan atau batalkan login yang sedang berjalan dulu.')
+  if (accountId !== undefined && (!Number.isSafeInteger(accountId) || accountId <= 0)) throw new Error('Akun Flow tidak valid.')
+  if (flowSetupStatus().state === 'unsupported') throw new Error('Login otomatis membutuhkan Windows 64-bit.')
+  const ctrl = new AbortController()
+  connection = ctrl
+  report({ connecting: true, error: null, message: 'Menyiapkan Google Flow…' })
+  let captured: Awaited<ReturnType<typeof captureFlowLogin>> | undefined
+  let saved = false
+  try {
+    setSettings({ flowLocalEnabled: true })
+    if (installation) await installation
+    if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+    if (!sourceIsCurrent()) { if (server) throw new Error('Hentikan Flow2API dulu untuk memperbarui pemasangan.'); await installFlow() }
+    if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+    await startFlow()
+    if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+    if (status.state !== 'running') throw new Error(status.error ?? 'Flow2API belum siap. Coba lagi.')
+    await checkFlowAccount()
+    if (status.error) throw new Error(status.error)
+    const existing = accountId === undefined ? undefined : status.accounts.find(a => a.id === accountId)
+    if (accountId !== undefined && !existing) throw new Error('Akun sudah tidak tersedia. Periksa daftar akun lagi.')
+    report({ error: null, message: 'Login di browser yang terbuka sampai halaman Google Flow tampil. Akun akan tersambung otomatis.' })
+    captured = await captureFlowLogin({ root: root(), python: python(), chromium: loginBrowser(), email: existing?.email.toLowerCase(), signal: ctrl.signal })
+    if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+    await checkFlowAccount()
+    if (status.error) throw new Error(status.error)
+    const match = status.accounts.find(a => a.email.toLowerCase() === captured!.email)
+    report({ message: 'Memeriksa dan menyimpan akun Flow…' })
+    await accountRequest(match ? `/${match.id}` : '', match ? 'PUT' : 'POST', {
+      google_cookies: captured.google_cookies, login_account: captured.email, protocol_mode: 'protocol',
+      auto_refresh_enabled: true, refresh_interval_minutes: 120
+    }, ctrl.signal)
+    saved = true
+    captured.commit()
+    if (match && !match.enabled) await accountRequest(`/${match.id}/enable`, 'POST', undefined, ctrl.signal)
+    await checkFlowAccount()
+    if (!status.accounts.some(a => a.email.toLowerCase() === captured!.email && a.ready)) throw new Error('Akun tersimpan, tetapi belum siap. Klik Periksa akun atau hubungkan ulang.')
+    setSettings({ imageModel: defaultFlowModel('image', '16:9'), videoModel: defaultFlowModel('video', '16:9') })
+    report({ message: 'Akun terhubung. Google Flow siap untuk proyek baru.', error: null })
+  } catch (e) {
+    if (!saved) captured?.discard()
+    const message = ctrl.signal.aborted ? 'Login dibatalkan. Kamu bisa mencoba lagi.' : (e as Error).message
+    report({ error: ctrl.signal.aborted ? null : message, message })
+    if (!ctrl.signal.aborted) throw new Error(message)
+  } finally { connection = null; report({ connecting: false }) }
+}
+
+export async function removeFlowAccount(id: number): Promise<void> {
+  if (connection) throw new Error('Selesaikan login dulu sebelum menghapus akun.')
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Akun Flow tidak valid.')
+  await checkFlowAccount()
+  if (status.error) throw new Error(status.error)
+  const account = status.accounts.find(a => a.id === id)
+  if (!account) throw new Error('Akun sudah tidak tersedia.')
+  await accountRequest(`/${id}`, 'DELETE')
+  try { removeAccountProfile(root(), account.email.toLowerCase()) }
+  catch { throw new Error('Akun dihapus dari layanan, tetapi profil browser masih terkunci. Tutup browser login lalu bersihkan profil lokalnya.') }
+  finally { await checkFlowAccount() }
 }
 
 export async function enableLocalFlow(enabled: boolean): Promise<void> {

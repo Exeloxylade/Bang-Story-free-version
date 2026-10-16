@@ -114,6 +114,9 @@ export function registerIpc(): void {
   handle('flowSetup:openPanel', () => flowSetup.openFlowPanel())
   handle('flowSetup:check', () => flowSetup.checkFlowAccount())
   handle('flowSetup:useDefaults', () => flowSetup.useFlowDefaults())
+  handle('flowSetup:connect', (id?: number) => flowSetup.connectFlowAccount(id))
+  handle('flowSetup:cancelConnect', () => flowSetup.cancelFlowConnect())
+  handle('flowSetup:removeAccount', (id: number) => flowSetup.removeFlowAccount(id))
   handle('whisper:status', () => whisperStatus())
   // The download runs in the background and reports through whisper events.
   handle('whisper:download', () => {

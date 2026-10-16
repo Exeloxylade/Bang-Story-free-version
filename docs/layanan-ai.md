@@ -87,9 +87,14 @@ di API Higgsfield (hanya di aplikasi webnya). Satu entri:
 ## Flow2API English lokal (`flowSetup.ts`)
 
 - Sumber: [Exeloxylade/flow2api-English](https://github.com/Exeloxylade/flow2api-English), dipatok ke revisi kode yang sudah diuji. Tautan di Pengaturan memakai fork yang sama.
-- Panel akun berbahasa Inggris dan menyediakan **Setup guide**. Tambahkan akun lewat **Accounts → Add** memakai **Google Cookies** lengkap dan email **Google Account** yang sama. Satu Session Token/ST lama tidak cukup.
+- Di Pengaturan, klik **Hubungkan Google Flow**. Bang Story mengaktifkan layanan lokal, memasang kebutuhan bila perlu, menjalankan server, lalu membuka browser login. Setelah halaman Flow menampilkan identitas akun dan cookie Google/Flow lengkap, sesi divalidasi dan didaftarkan otomatis lewat API admin lokal. Tidak perlu menyalin cookie atau memasukkan email.
+- **Tambah akun Google** memakai profil browser baru. **Hubungkan ulang** memakai profil akun itu dan menolak identitas email yang berbeda. Login ulang melalui tombol tambah dengan email yang sudah ada memperbarui akun, bukan membuat duplikat. **Hapus** menghapus akun di server dan profil login Bang Story; proyek tetap tersimpan.
+- `flowAccounts.ts` mengelola profil UUID dan hanya menyimpan pemetaan email/profil di `account-profiles.json`. `flowLogin.ts` berisi helper Python yang membuka Chrome terpasang (atau Chromium kelolaan aplikasi) dengan profil khusus, lalu Playwright menempel lewat CDP di loopback dengan port acak. Cookie hanya dikirim ke proses main melalui pipe privat, lalu ke server lokal; renderer hanya menerima ID, email, dan status akun. Kata sandi Google tidak diminta oleh Bang Story.
+- Login dapat dibatalkan, memiliki batas waktu, dan menutup browser yang dikelolanya. Pembatalan saat pemasangan juga menghentikan unduhan/proses pemasangan. Browser captcha internal server tidak lagi membuka jendela login kedua saat belum ada akun.
+- Sesudah tersambung, model Flow dipakai untuk gambar dan video proyek baru. Proyek lama tetap memilih modelnya sendiri di Ide cerita. Pemeriksaan daftar akun mengukur status sesi tersimpan, bukan menjamin keberhasilan generasi. Verifikasi Google, akses Flow, kuota, dan perubahan layanan tetap dapat memerlukan tindakan pengguna.
 - Untuk pemasangan lama, hentikan server lalu **Pasang ulang**. Folder `data`, `tmp`, dan `config/setting.toml` disalin ke sumber baru; sumber lama disimpan sebagai cadangan. Server lama harus diperbarui sebelum dijalankan dari versi Bang Story ini.
-- Kunci API dan kata sandi admin lokal tetap dikelola Bang Story lewat penyimpanan terenkripsi. Cookie hanya dimasukkan ke server lokal milik pengguna.
+- Kunci API dan kata sandi admin lokal tetap dikelola Bang Story lewat penyimpanan terenkripsi. Cookie disimpan oleh browser dan database Flow2API lokal sesuai mekanisme upstream; database server tidak mendapat lapisan enkripsi tambahan dari fitur ini. Jangan bagikan folder data atau cadangan server.
+- Pengujian regresi: `npm run test:flow`, lalu `python tests/test_flow_login.py`. Tes memakai proses/browser/API tiruan dan tidak login Google atau memakai kuota. Tetap jalankan `npm run typecheck`, `npm run build`, dan dev harness untuk pemeriksaan tampilan.
 
 ## Whisper lokal (`src/main/whisper.ts`)
 

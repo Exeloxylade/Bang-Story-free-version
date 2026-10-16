@@ -111,6 +111,9 @@ export interface StudioApi {
     openPanel(): Promise<void>
     check(): Promise<FlowSetupStatus>
     useDefaults(): Promise<void>
+    connect(accountId?: number): Promise<void>
+    cancelConnect(): Promise<void>
+    removeAccount(accountId: number): Promise<void>
   }
   whisper: {
     status(): Promise<WhisperStatus>

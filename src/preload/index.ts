@@ -85,7 +85,10 @@ const api: StudioApi = {
     setEnabled: call('flowSetup:setEnabled'),
     openPanel: call('flowSetup:openPanel'),
     check: call('flowSetup:check'),
-    useDefaults: call('flowSetup:useDefaults')
+    useDefaults: call('flowSetup:useDefaults'),
+    connect: call('flowSetup:connect'),
+    cancelConnect: call('flowSetup:cancelConnect'),
+    removeAccount: call('flowSetup:removeAccount')
   },
   whisper: {
     status: call('whisper:status'),
