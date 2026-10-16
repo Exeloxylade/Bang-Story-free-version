@@ -25,6 +25,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 
 
 ### Diperbaiki
+- Kurung penutup fungsi pemeriksaan kunci Flow2API yang hilang dan menyebabkan build gagal dengan `Unexpected "export"`.
 - Kunci Gemini untuk penyusun cerita dan Gemini TTS disimpan terpisah. Mengubah atau menghapus satu kunci tidak
   lagi mengubah kunci lainnya; kunci lama disalin sekali untuk menjaga narasi saat aplikasi diperbarui.
 

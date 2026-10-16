@@ -31,6 +31,7 @@ async function models(key?: string): Promise<{ id: string; description?: string 
 export async function testKey(key?: string): Promise<KeyTestResult> {
   try { return { ok: true, message: `Terhubung · ${(await models(key)).length} model tersedia` } }
   catch { return { ok: false, message: 'Flow2API belum terhubung. Periksa server, alamat, dan kunci API.' } }
+}
 
 export async function listModels(kind: 'image' | 'video'): Promise<ModelOption[]> {
   return (await models()).filter(m => kind === 'image' ? /image|imagen/i.test(m.id) : (/-i2v-|_i2v_|^omni-/.test(m.id) && !/extend|interpolation|upsample/i.test(m.id)))
