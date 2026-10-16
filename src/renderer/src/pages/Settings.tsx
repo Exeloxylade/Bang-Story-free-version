@@ -573,7 +573,7 @@ function FlowSection({ settings, status, onChanged }: { settings: AppSettings; s
       <Field label="Alamat server Flow2API">
         <div className="flex gap-2"><input className={cx(inputCls, 'min-w-0 flex-1')} value={url} onChange={e => setUrl(e.target.value)} placeholder="http://localhost:8000" /><Button onClick={() => void save()}>Simpan alamat</Button></div>
       </Field>
-      <KeyForm provider="flow2api" name="Flow2API" status={status} help="Masukkan kunci API server Flow2API, bukan kunci Gemini atau token login Google. Simpan alamat server sebelum mengecek kunci." link="https://github.com/TheSmallHanCat/flow2api" linkLabel="Buka Flow2API" onChanged={onChanged} />
+      <KeyForm provider="flow2api" name="Flow2API" status={status} help="Masukkan kunci API server Flow2API, bukan kunci Gemini atau cookie login Google. Simpan alamat server sebelum mengecek kunci." link="https://github.com/Exeloxylade/flow2api-English" linkLabel="Buka Flow2API English" onChanged={onChanged} />
       </>}
       <div className="grid grid-cols-2 gap-3">
         {(['image', 'video'] as const).map(kind => <Field key={kind} label={kind === 'image' ? 'Penyedia gambar proyek baru' : 'Penyedia video proyek baru'}>

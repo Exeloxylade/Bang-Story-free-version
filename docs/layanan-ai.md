@@ -84,6 +84,13 @@ di API Higgsfield (hanya di aplikasi webnya). Satu entri:
   "butuh <field>" (`checkRequired`). Ikon keluarga model diatur di `components/ModelLogo.tsx`.
 - Model bawaan: `DEFAULT_IMAGE_MODEL` dan `DEFAULT_VIDEO_MODEL` di `shared/higgsfield.ts`.
 
+## Flow2API English lokal (`flowSetup.ts`)
+
+- Sumber: [Exeloxylade/flow2api-English](https://github.com/Exeloxylade/flow2api-English), dipatok ke revisi kode yang sudah diuji. Tautan di Pengaturan memakai fork yang sama.
+- Panel akun berbahasa Inggris dan menyediakan **Setup guide**. Tambahkan akun lewat **Accounts → Add** memakai **Google Cookies** lengkap dan email **Google Account** yang sama. Satu Session Token/ST lama tidak cukup.
+- Untuk pemasangan lama, hentikan server lalu **Pasang ulang**. Folder `data`, `tmp`, dan `config/setting.toml` disalin ke sumber baru; sumber lama disimpan sebagai cadangan. Server lama harus diperbarui sebelum dijalankan dari versi Bang Story ini.
+- Kunci API dan kata sandi admin lokal tetap dikelola Bang Story lewat penyimpanan terenkripsi. Cookie hanya dimasukkan ke server lokal milik pengguna.
+
 ## Whisper lokal (`src/main/whisper.ts`)
 
 - Biner: `resources/whisper/whisper-cli.exe` + DLL (whisper.cpp, lisensi MIT). Saat ini hanya untuk Windows.

@@ -25,6 +25,8 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 
 
 ### Diperbaiki
+- Pemasangan lokal dan tautan dokumentasi Flow2API memakai fork English milik Exeloxylade. Pasang ulang memperbarui kode server sambil menyimpan akun, cache, pengaturan, dan cadangan kode lama.
+- Panduan akun Flow2API mengikuti panel Accounts → Add dan cookie Google/Flow lengkap, menggantikan petunjuk Session Token lama.
 - Kurung penutup fungsi pemeriksaan kunci Flow2API yang hilang dan menyebabkan build gagal dengan `Unexpected "export"`.
 - Kunci Gemini untuk penyusun cerita dan Gemini TTS disimpan terpisah. Mengubah atau menghapus satu kunci tidak
   lagi mengubah kunci lainnya; kunci lama disalin sekali untuk menjaga narasi saat aplikasi diperbarui.

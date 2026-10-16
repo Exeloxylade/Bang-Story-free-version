@@ -1,6 +1,6 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
 import { randomBytes, createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createServer } from 'node:net'
 import { BrowserWindow, session } from 'electron'
@@ -11,9 +11,11 @@ import { getSecret, requireSecret, setSecret, recordCheck } from './secrets'
 import { getSettings, setSettings } from './settings'
 import { emit } from './events'
 import { sleep } from './services/http'
+import { replaceFlowSource } from './flowSource'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
-const REV = 'c35b8df42bf30b0c8c33f96a9674a3b81a03a3ce'
+const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
+const REV = 'd4bf2f744d38de4120ecad45efcea81c0822e571'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -21,6 +23,13 @@ const source = (): string => join(root(), 'source')
 const python = (): string => join(root(), 'python', 'python.exe')
 const browserDir = (): string => join(root(), 'browsers')
 const installed = (): boolean => existsSync(join(root(), 'installed.json')) && existsSync(python()) && existsSync(join(source(), 'main.py'))
+function sourceIsCurrent(): boolean {
+  if (!installed()) return false
+  try {
+    const marker = JSON.parse(readFileSync(join(root(), 'installed.json'), 'utf8')) as { repository?: string; revision?: string }
+    return marker.repository === FLOW_REPOSITORY && marker.revision === REV
+  } catch { return false }
+}
 let server: ChildProcess | null = null
 let worker: ChildProcess | null = null
 let setup: AbortController | null = null
@@ -36,6 +45,8 @@ function report(patch: Partial<FlowSetupStatus>): void {
 
 export function flowSetupStatus(): FlowSetupStatus {
   if (process.platform !== 'win32' || process.arch !== 'x64') return { ...status, state: 'unsupported', message: 'Pemasangan otomatis tersedia untuk Windows 64-bit. Kamu tetap bisa memakai server eksternal.' }
+  if (installed() && !sourceIsCurrent() && !setup && !server)
+    return { ...status, installed: true, state: 'installed', message: 'Flow2API English tersedia. Klik Pasang ulang untuk memperbarui panel dan menyimpan akun lama.' }
   return { ...status, installed: installed(), state: status.state === 'missing' && installed() ? 'installed' : status.state }
 }
 
@@ -102,20 +113,20 @@ export function installFlow(): void {
         await download(PYTHON_URL, join(root(), 'python.tar.gz'), signal, PYTHON_SHA)
         await run('tar.exe', ['-xf', join(root(), 'python.tar.gz'), '-C', root()], signal)
       }
-      report({ progress: 0.25, message: 'Mengunduh Flow2API' })
-      if (!existsSync(join(source(), 'main.py'))) {
+      report({ progress: 0.25, message: 'Mengunduh Flow2API English' })
+      if (!sourceIsCurrent()) {
         const zip = join(root(), 'source.zip')
-        await download(`https://github.com/TheSmallHanCat/flow2api/archive/${REV}.zip`, zip, signal)
+        await download(`https://github.com/${FLOW_REPOSITORY}/archive/${REV}.zip`, zip, signal)
         const quote = (s: string): string => `'${s.replace(/'/g, "''")}'`
         await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath ${quote(zip)} -DestinationPath ${quote(join(root(), 'unpack'))} -Force`], signal)
-        renameSync(join(root(), 'unpack', `flow2api-${REV}`), source())
+        replaceFlowSource(source(), join(root(), 'unpack', `flow2api-English-${REV}`))
       }
       report({ progress: 0.45, message: 'Memasang kebutuhan Flow2API (bisa beberapa menit)' })
       await run(python(), ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', join(source(), 'requirements.txt')], signal)
       report({ progress: 0.75, message: 'Mengunduh browser untuk login Google Flow' })
       await run(python(), ['-m', 'playwright', 'install', 'chromium'], signal, root(), { PLAYWRIGHT_BROWSERS_PATH: browserDir() })
       writeFileSync(join(source(), 'bang-story-runner.py'), RUNNER)
-      writeFileSync(join(root(), 'installed.json'), JSON.stringify({ revision: REV }))
+      writeFileSync(join(root(), 'installed.json'), JSON.stringify({ repository: FLOW_REPOSITORY, revision: REV }))
       report({ state: 'installed', progress: 1, message: 'Terpasang. Jalankan Flow2API untuk menghubungkan akun Google.', error: null })
     } catch (e) { report({ state: installed() ? 'installed' : 'error', error: (e as Error).message, message: 'Pemasangan belum selesai' }) }
     finally { setup = null }
@@ -172,6 +183,7 @@ export async function startFlow(): Promise<void> {
   if (server || status.state === 'starting') return
   if (!getSettings().flowLocalEnabled) throw new Error('Aktifkan Flow2API lokal dulu.')
   if (!installed() || setup) throw new Error('Pasang Flow2API sampai selesai dulu.')
+  if (!sourceIsCurrent()) throw new Error('Flow2API English perlu dipasang. Klik Pasang ulang; akun dan pengaturan lama akan disimpan.')
   stopping = false
   report({ state: 'starting', message: 'Membuka Flow2API dan browser login', error: null, accountReady: false })
   try {
