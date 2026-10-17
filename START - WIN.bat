@@ -47,7 +47,8 @@ if not exist "node_modules\electron\dist\electron.exe" (
   )
 )
 
-if not exist "out\main\index.js" (
+rem Rebuild after ZIP updates so an old out folder cannot hide new fixes.
+(
   echo  Menyusun aplikasi...
   call npm run build
   if errorlevel 1 (

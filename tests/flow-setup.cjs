@@ -66,7 +66,7 @@ function fixture() {
   }
   const module = { exports: {} }
   new Function('require', 'module', 'exports', 'fetch', js)(name => deps[name] ?? require(name), module, module.exports, fetchMock)
-  return { api: module.exports, tokens, mutations, events, identity: value => { identity = value }, failCheck: () => { failCheck = true }, capture: fn => { captureHook = fn }, get settings() { return settings }, get committed() { return committed }, get discarded() { return discarded }, clean: () => fs.rmSync(root, { recursive: true, force: true }) }
+  return { root, api: module.exports, tokens, mutations, events, identity: value => { identity = value }, failCheck: () => { failCheck = true }, capture: fn => { captureHook = fn }, get settings() { return settings }, get committed() { return committed }, get discarded() { return discarded }, clean: () => fs.rmSync(root, { recursive: true, force: true }) }
 }
 
 test('connect enables local mode, registers once, adds another account and reconnects without duplicates', async () => {
@@ -141,4 +141,27 @@ test('invalid account IDs are rejected before side effects', async () => {
     await assert.rejects(f.api.removeFlowAccount('../1'), /tidak valid/)
     assert.equal(f.mutations.length, 0)
   } finally { f.clean() }
+})
+
+test('login selects installed Edge and lifecycle logs contain no session credentials', async () => {
+  const f = fixture()
+  const previous = process.env.PROGRAMFILES
+  const browserRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bang-edge-'))
+  try {
+    const edge = path.join(browserRoot, 'Microsoft/Edge/Application/msedge.exe')
+    fs.mkdirSync(path.dirname(edge), { recursive: true })
+    fs.writeFileSync(edge, '')
+    process.env.PROGRAMFILES = browserRoot
+    f.capture(async options => assert.equal(options.chromium, edge))
+    await f.api.connectFlowAccount()
+    const log = fs.readFileSync(path.join(f.root, 'startup.log'), 'utf8')
+    assert.match(log, /Server is ready/)
+    assert.equal(log.includes('private-'), false)
+    assert.equal(log.includes('Bearer'), false)
+  } finally {
+    if (previous === undefined) delete process.env.PROGRAMFILES
+    else process.env.PROGRAMFILES = previous
+    fs.rmSync(browserRoot, { recursive: true, force: true })
+    f.clean()
+  }
 })

@@ -1,6 +1,6 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
 import { randomBytes, createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createServer } from 'node:net'
 import { BrowserWindow, session } from 'electron'
@@ -16,7 +16,7 @@ import { captureFlowLogin, removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '52a4fe69591c1dda2ed113266ebc3e5958d9d079'
+const REV = '13e4fc63c22f3b27aeb59fc8a7d8d73df4f5373a'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -60,16 +60,27 @@ function killTree(child: ChildProcess | null): void {
   catch { child.kill() }
 }
 
+function diagnostic(event: string): void {
+  // Only our lifecycle events enter this log; subprocess output can contain credentials.
+  try {
+    mkdirSync(root(), { recursive: true })
+    const file = join(root(), 'startup.log')
+    if (existsSync(file) && statSync(file).size > 65536) writeFileSync(file, '')
+    appendFileSync(file, `${new Date().toISOString()} ${event}\n`)
+  } catch { /* Diagnostics must not interrupt startup. */ }
+}
+
 function run(file: string, args: string[], signal: AbortSignal, cwd = root(), env: NodeJS.ProcessEnv = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new Error('Pemasangan dibatalkan'))
+    diagnostic('Installation step started')
     const child = spawn(file, args, { cwd, windowsHide: true, stdio: 'ignore', env: { ...process.env, ...env } })
     worker = child
     const abort = (): void => killTree(child)
     signal.addEventListener('abort', abort, { once: true })
     const cleanup = (): void => { signal.removeEventListener('abort', abort); if (worker === child) worker = null }
-    child.once('error', () => { cleanup(); reject(new Error('Program pemasangan tidak bisa dijalankan. Periksa koneksi dan ruang disk.')) })
-    child.once('exit', code => { cleanup(); code === 0 && !signal.aborted ? resolve() : reject(new Error(signal.aborted ? 'Pemasangan dibatalkan' : 'Pemasangan gagal. Periksa koneksi internet dan ruang disk, lalu coba lagi.')) })
+    child.once('error', () => { diagnostic('Installation process could not launch'); cleanup(); reject(new Error('Program pemasangan tidak bisa dijalankan. Periksa koneksi dan ruang disk.')) })
+    child.once('exit', code => { diagnostic(`Installation step exited: ${code}`); cleanup(); code === 0 && !signal.aborted ? resolve() : reject(new Error(signal.aborted ? 'Pemasangan dibatalkan' : 'Pemasangan gagal. Periksa koneksi internet dan ruang disk, lalu coba lagi.')) })
   })
 }
 
@@ -92,6 +103,8 @@ config.get_raw_config()['debug'].update(enabled=False, log_requests=False, log_r
 original_reload = Database.reload_config_to_memory
 async def reload_config(self):
     await original_reload(self)
+    config.get_raw_config()['captcha']['captcha_method'] = 'personal'
+    config.get_raw_config()['debug'].update(enabled=False, log_requests=False, log_responses=False)
     config.get_raw_config()['global']['api_key'] = os.environ['BANG_FLOW_KEY']
     config.admin_username = 'admin'
     config.admin_password = os.environ['BANG_FLOW_ADMIN']
@@ -169,6 +182,8 @@ function loginBrowser(): string {
     if (!base) continue
     const chrome = join(base, 'Google', 'Chrome', 'Application', 'chrome.exe')
     if (existsSync(chrome)) return chrome
+    const edge = join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe')
+    if (existsSync(edge)) return edge
   }
   return chromium()
 }
@@ -214,26 +229,36 @@ async function startFlowServer(): Promise<void> {
   stopping = false
   report({ state: 'starting', message: 'Membuka Flow2API dan browser login', error: null, accountReady: false })
   try {
+    diagnostic('Checking local port')
     await checkPort()
     if (stopping || !getSettings().flowLocalEnabled) return
     if (!getSecret('flow2api-local')) setSecret('flow2api-local', randomBytes(32).toString('hex'))
     if (!getSecret('flow2api-admin')) setSecret('flow2api-admin', randomBytes(24).toString('hex'))
     writeFileSync(join(source(), 'bang-story-runner.py'), RUNNER)
     stopping = false
-    const child = spawn(python(), [join(source(), 'bang-story-runner.py')], { cwd: source(), windowsHide: true, stdio: 'ignore', env: { ...process.env, PYTHONUTF8: '1', PYTHONUNBUFFERED: '1', PLAYWRIGHT_BROWSERS_PATH: browserDir(), BROWSER_EXECUTABLE_PATH: chromium(), PERSONAL_BROWSER_USER_DATA_DIR: join(root(), 'google-profile'), BANG_FLOW_KEY: requireSecret('flow2api-local'), BANG_FLOW_ADMIN: requireSecret('flow2api-admin') } })
+    diagnostic('Starting local Python server')
+    const child = spawn(python(), [join(source(), 'bang-story-runner.py')], { cwd: source(), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, PYTHONUTF8: '1', PYTHONUNBUFFERED: '1', FLOW_DEFER_BROWSER_WARMUP: '1', PLAYWRIGHT_BROWSERS_PATH: browserDir(), BROWSER_EXECUTABLE_PATH: chromium(), PERSONAL_BROWSER_USER_DATA_DIR: join(root(), 'google-profile'), BANG_FLOW_KEY: requireSecret('flow2api-local'), BANG_FLOW_ADMIN: requireSecret('flow2api-admin') } })
+    let stderr = ''
+    const diagnosed = new Set<string>()
+    child.stderr?.on('data', chunk => {
+      stderr = (stderr + chunk.toString('utf8')).slice(-2048)
+      for (const kind of ['ModuleNotFoundError', 'ImportError', 'PermissionError', 'UnicodeEncodeError', 'OSError', 'SyntaxError']) {
+        if (stderr.includes(kind) && !diagnosed.has(kind)) { diagnosed.add(kind); diagnostic(`Server error category: ${kind}`) }
+      }
+    })
     server = child
-    child.once('error', () => { if (server === child) server = null; report({ state: 'error', error: 'Flow2API tidak bisa dijalankan. Coba pasang ulang.', accountReady: false }) })
-    child.once('exit', () => { if (server !== child) return; server = null; adminSession = null; report({ state: stopping ? 'installed' : 'error', accountReady: false, activeAccounts: 0, error: stopping ? null : 'Flow2API berhenti. Jalankan lagi atau pasang ulang.' }) })
+    child.once('error', () => { diagnostic('Server process could not launch'); if (server === child) server = null; report({ state: 'error', error: 'Flow2API tidak bisa dijalankan. Coba pasang ulang.', accountReady: false }) })
+    child.once('exit', code => { diagnostic(`Server process exited: ${code}`); if (server !== child) return; server = null; adminSession = null; report({ state: stopping ? 'installed' : 'error', accountReady: false, activeAccounts: 0, error: stopping ? null : 'Flow2API berhenti. Jalankan lagi atau pasang ulang.' }) })
     for (let i = 0; i < 120; i++) {
       if (!server || stopping) throw new Error('Flow2API berhenti saat dijalankan.')
       try {
         const res = await fetch(`${LOCAL_FLOW_URL}/v1/models`, { headers: { Authorization: `Bearer ${requireSecret('flow2api-local')}` }, signal: AbortSignal.timeout(1500) })
-        if (res.ok && server === child && !stopping && Array.isArray((await res.json() as { data?: unknown }).data)) { report({ state: 'running', progress: 1, message: 'Flow2API berjalan. Hubungkan akun Google Flow.' }); await checkFlowAccount(); return }
+        if (res.ok && server === child && !stopping && Array.isArray((await res.json() as { data?: unknown }).data)) { diagnostic('Server is ready'); report({ state: 'running', progress: 1, message: 'Flow2API berjalan. Hubungkan akun Google Flow.' }); await checkFlowAccount(); return }
       } catch { /* Startup includes browser initialization. */ }
       await sleep(1000)
     }
-    throw new Error('Flow2API belum siap. Tutup browser login setelah selesai, lalu coba lagi.')
-  } catch (e) { if (stopping) return; stopFlow(false); report({ state: 'error', error: (e as Error).message, message: 'Belum bisa dijalankan' }) }
+    throw new Error('Flow2API belum siap. Hentikan layanan lalu coba lagi.')
+  } catch (e) { if (stopping) return; diagnostic('Server startup failed'); stopFlow(false); report({ state: 'error', error: `${(e as Error).message} Log: ${join(root(), 'startup.log')}`, message: 'Belum bisa dijalankan' }) }
 }
 
 export function stopFlow(cancelConnection = true): void {

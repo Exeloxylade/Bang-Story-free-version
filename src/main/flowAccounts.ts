@@ -68,7 +68,7 @@ export async function captureFlowLogin(options: {
         cleanup()
         if (signal.aborted) { reject(new Error('Login dibatalkan')); return }
         if (code !== 0 || oversized) {
-          reject(new Error(code === 3 ? 'Akun berbeda. Hubungkan ulang dengan akun Google yang sama.' : code === 2 ? 'Browser ditutup sebelum login selesai.' : code === 4 ? 'Waktu login habis. Coba hubungkan lagi.' : 'Login belum berhasil. Pastikan Google Flow terbuka dan coba lagi.'))
+          reject(new Error(code === 3 ? 'Akun berbeda. Hubungkan ulang dengan akun Google yang sama.' : code === 2 ? 'Browser ditutup sebelum login selesai.' : code === 4 ? 'Waktu login habis. Coba hubungkan lagi.' : code === 6 ? 'Halaman Google Flow tidak bisa dibuka. Periksa koneksi internet lalu hubungkan lagi.' : 'Browser login belum siap. Pasang Chrome atau Microsoft Edge, lalu hubungkan lagi.'))
           return
         }
         try {
