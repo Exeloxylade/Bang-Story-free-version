@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Integrasi bersama fork Flow2API: helper login berada di server dan registrasi sesi memakai endpoint admin khusus yang memverifikasi identitas akun Google sebelum menyimpan sesi.
 - Hubungkan Google Flow sekali klik: pemasangan dan startup layanan otomatis, login browser langsung, serta pendaftaran sesi tanpa menyalin cookie. Akun dapat ditambah, dihubungkan ulang, atau dihapus dari Bang Story dengan profil login terpisah.
 - Pengujian regresi untuk isolasi profil, duplikat akun, pembatalan, identitas login, penyaringan cookie, dan pendaftaran API lokal.
 - Preset **Stickman minimalist**: karakter garis sederhana dengan wajah dan aksesori minimal, serta latar

@@ -2,7 +2,6 @@ import { execFileSync, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { FLOW_LOGIN } from './flowLogin'
 
 type Profile = { email: string; directory: string }
 const validDirectory = (value: string): boolean => /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(value)
@@ -32,16 +31,15 @@ export function removeAccountProfile(root: string, email: string): void {
 }
 
 export async function captureFlowLogin(options: {
-  root: string; python: string; chromium: string; email?: string; signal: AbortSignal
+  root: string; python: string; chromium: string; script: string; email?: string; signal: AbortSignal
 }): Promise<{ email: string; google_cookies: string; commit: () => void; discard: () => void }> {
-  const { root, python, chromium, email, signal } = options
+  const { root, python, chromium, script, email, signal } = options
+  if (!existsSync(script)) throw new Error('Flow2API perlu diperbarui. Hentikan layanan lalu klik Pasang ulang.')
   const data = profiles(root)
   const previous = email ? data.find(p => p.email === email) : undefined
   const directory = previous?.directory ?? randomUUID()
   const profilePath = join(root, 'account-profiles', directory)
   mkdirSync(profilePath, { recursive: true })
-  const script = join(root, 'bang-story-login.py')
-  writeFileSync(script, FLOW_LOGIN)
   const discard = (): void => { if (!previous) rmSync(profilePath, { recursive: true, force: true }) }
   try {
     const result = await new Promise<{ email: string; cookies: unknown[] }>((resolve, reject) => {

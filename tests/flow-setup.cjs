@@ -52,7 +52,12 @@ function fixture() {
     } else {
       mutations.push({ url, method: options.method, body: options.body })
       const match = url.match(/\/api\/tokens\/(\d+)/)
-      if (options.method === 'POST' && !match) tokens.push({ id: tokens.length + 1, email: JSON.parse(options.body).login_account, is_active: true, at: 'private-at', at_expired: false })
+      if (url.endsWith('/browser-session')) {
+        const email = JSON.parse(options.body).login_account
+        const existing = tokens.find(t => t.email === email)
+        if (existing) Object.assign(existing, { is_active: true, at_expired: false })
+        else tokens.push({ id: tokens.length + 1, email, is_active: true, at: 'private-at', at_expired: false })
+      }
       if (options.method === 'PUT') Object.assign(tokens.find(t => t.id === Number(match[1])), { at_expired: false })
       if (url.endsWith('/enable')) tokens.find(t => t.id === Number(match[1])).is_active = true
       if (options.method === 'DELETE') tokens.splice(tokens.findIndex(t => t.id === Number(match[1])), 1)
@@ -73,7 +78,9 @@ test('connect enables local mode, registers once, adds another account and recon
     assert.equal(f.committed, true)
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 1)
-    assert.equal(f.mutations[1].method, 'PUT')
+    assert.equal(f.mutations[1].method, 'POST')
+    assert.equal(f.mutations[1].url.endsWith('/browser-session'), true)
+    assert.deepEqual(Object.keys(JSON.parse(f.mutations[1].body)).sort(), ['google_cookies', 'login_account'])
     f.identity('two@example.com')
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 2)
@@ -83,6 +90,17 @@ test('connect enables local mode, registers once, adds another account and recon
     assert.equal(JSON.stringify(status).includes('private-'), false)
     assert.equal(JSON.stringify(f.events).includes('private-'), false)
     await f.api.removeFlowAccount(1)
+    assert.equal(f.tokens.length, 1)
+  } finally { f.clean() }
+})
+
+test('reconnect forwards the account ID to the server identity check', async () => {
+  const f = fixture()
+  try {
+    await f.api.connectFlowAccount()
+    f.capture(async options => { assert.equal(options.email, 'one@example.com'); assert.ok(options.script.endsWith('browser_login.py')) })
+    await f.api.connectFlowAccount(1)
+    assert.equal(JSON.parse(f.mutations[1].body).expected_account_id, 1)
     assert.equal(f.tokens.length, 1)
   } finally { f.clean() }
 })

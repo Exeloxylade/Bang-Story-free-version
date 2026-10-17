@@ -8,6 +8,8 @@ const ts = require('typescript')
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bang-flow-test-'))
+  const script = path.join(root, 'browser_login.py')
+  fs.writeFileSync(script, '# pinned Flow2API login helper')
   const calls = []
   let scenario = { code: 0, output: JSON.stringify({ email: 'one@example.com', cookies: [{ name: 'OSID', value: 'fake' }] }) }
   const childProcess = {
@@ -31,8 +33,8 @@ function fixture() {
   const source = fs.readFileSync(path.join(__dirname, '../src/main/flowAccounts.ts'), 'utf8')
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2023 } }).outputText
   const module = { exports: {} }
-  new Function('require', 'module', 'exports', js)(name => name === 'node:child_process' ? childProcess : name === './flowLogin' ? { FLOW_LOGIN: '# test helper' } : require(name), module, module.exports)
-  return { root, calls, api: module.exports, set: value => { scenario = { ...scenario, ...value } }, options: signal => ({ root, python: 'test-python', chromium: 'test-browser', signal: signal ?? new AbortController().signal }), clean: () => fs.rmSync(root, { recursive: true, force: true }) }
+  new Function('require', 'module', 'exports', js)(name => name === 'node:child_process' ? childProcess : require(name), module, module.exports)
+  return { root, calls, api: module.exports, set: value => { scenario = { ...scenario, ...value } }, options: signal => ({ root, script, python: 'test-python', chromium: 'test-browser', signal: signal ?? new AbortController().signal }), clean: () => fs.rmSync(root, { recursive: true, force: true }) }
 }
 
 test('profiles stay isolated, reconnect reuses profile, and removal preserves another account', async () => {
@@ -104,5 +106,13 @@ test('profile metadata rejects directory traversal before deleting anything', ()
   try {
     fs.writeFileSync(path.join(f.root, 'account-profiles.json'), JSON.stringify([{ email: 'one@example.com', directory: '../../outside' }]))
     assert.throws(() => f.api.removeAccountProfile(f.root, 'one@example.com'), /profil Flow/)
+  } finally { f.clean() }
+})
+
+test('outdated server without a login helper is rejected before opening a browser', async () => {
+  const f = fixture()
+  try {
+    await assert.rejects(f.api.captureFlowLogin({ ...f.options(), script: path.join(f.root, 'missing.py') }), /perlu diperbarui/)
+    assert.equal(f.calls.length, 0)
   } finally { f.clean() }
 })

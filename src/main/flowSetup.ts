@@ -16,7 +16,7 @@ import { captureFlowLogin, removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = 'd4bf2f744d38de4120ecad45efcea81c0822e571'
+const REV = 'fa635f48d93310611abb2e78c31b16fd13b449f5'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -294,19 +294,17 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
     const existing = accountId === undefined ? undefined : status.accounts.find(a => a.id === accountId)
     if (accountId !== undefined && !existing) throw new Error('Akun sudah tidak tersedia. Periksa daftar akun lagi.')
     report({ error: null, message: 'Login di browser yang terbuka sampai halaman Google Flow tampil. Akun akan tersambung otomatis.' })
-    captured = await captureFlowLogin({ root: root(), python: python(), chromium: loginBrowser(), email: existing?.email.toLowerCase(), signal: ctrl.signal })
+    captured = await captureFlowLogin({ root: root(), python: python(), chromium: loginBrowser(), script: join(source(), 'src', 'services', 'browser_login.py'), email: existing?.email.toLowerCase(), signal: ctrl.signal })
     if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
     await checkFlowAccount()
     if (status.error) throw new Error(status.error)
-    const match = status.accounts.find(a => a.email.toLowerCase() === captured!.email)
     report({ message: 'Memeriksa dan menyimpan akun Flow…' })
-    await accountRequest(match ? `/${match.id}` : '', match ? 'PUT' : 'POST', {
-      google_cookies: captured.google_cookies, login_account: captured.email, protocol_mode: 'protocol',
-      auto_refresh_enabled: true, refresh_interval_minutes: 120
+    await accountRequest('/browser-session', 'POST', {
+      google_cookies: captured.google_cookies, login_account: captured.email,
+      expected_account_id: accountId
     }, ctrl.signal)
     saved = true
     captured.commit()
-    if (match && !match.enabled) await accountRequest(`/${match.id}/enable`, 'POST', undefined, ctrl.signal)
     await checkFlowAccount()
     if (!status.accounts.some(a => a.email.toLowerCase() === captured!.email && a.ready)) throw new Error('Akun tersimpan, tetapi belum siap. Klik Periksa akun atau hubungkan ulang.')
     setSettings({ imageModel: defaultFlowModel('image', '16:9'), videoModel: defaultFlowModel('video', '16:9') })
