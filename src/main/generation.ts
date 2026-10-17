@@ -243,7 +243,7 @@ function startFlow(projectId: string, target: HfPayload['target'], clipId?: stri
   const video = target === 'clip-video'
   const job = insertJob({ projectId, clipId, characterId, kind: video ? 'video' : target === 'sheet' ? 'sheet' : 'image', provider: 'flow2api' })
   emit.job(job)
-  return runJob(job, target === 'sheet' ? 'flow2api-sheet' : 'flow2api', async (ctx) => {
+  return runJob(job, target === 'sheet' ? 'flow2api-sheet' : video ? 'flow2api-video' : 'flow2api', async (ctx) => {
     const project = getProject(projectId)
     const selected = video ? project.videoModel : project.imageModel
     if (!selected || !isFlowModel(selected)) throw new Error('Penyedia proyek berubah. Pilih model Flow2API lalu coba lagi.')

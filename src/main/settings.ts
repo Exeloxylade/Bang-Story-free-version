@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customBaseUrl: '',
   flowBaseUrl: 'http://localhost:8000',
   flowLocalEnabled: false,
+  flowImageConcurrency: 2,
   geminiTtsModel: 'gemini-3.8-flash-tts',
   elevenModel: 'eleven_multilingual_v2',
   imageModel: DEFAULT_IMAGE_MODEL,
@@ -30,6 +31,7 @@ export function getSettings(): AppSettings {
   }
   // A provider that no longer exists (e.g. from an older build) falls back to Gemini.
   if (!(out.llmProvider in DEFAULT_SETTINGS.llmModels)) out.llmProvider = 'gemini'
+  out.flowImageConcurrency = Number.isInteger(out.flowImageConcurrency) ? Math.max(1, Math.min(8, out.flowImageConcurrency)) : 2
   // Models dropped from the Higgsfield catalog fall back to the defaults.
   if (!isFlowModel(out.imageModel)) out.imageModel = getImageModel(out.imageModel).id
   if (!isFlowModel(out.videoModel)) out.videoModel = getVideoModel(out.videoModel).id
@@ -37,6 +39,8 @@ export function getSettings(): AppSettings {
 }
 
 export function setSettings(patch: Partial<AppSettings>): AppSettings {
+  if (patch.flowImageConcurrency !== undefined && (!Number.isInteger(patch.flowImageConcurrency) || patch.flowImageConcurrency < 1 || patch.flowImageConcurrency > 8))
+    throw new Error('Jumlah gambar Flow paralel harus berupa angka bulat dari 1 sampai 8.')
   if (patch.flowBaseUrl !== undefined) {
     const url = new URL(patch.flowBaseUrl.trim())
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)

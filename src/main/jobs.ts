@@ -2,8 +2,11 @@ import type { Job } from '@shared/types'
 import { emit } from './events'
 import { getJobRaw, updateJob } from './repo'
 import { cancelRequest } from './services/higgsfield'
+import { getSettings } from './settings'
+import { WorkQueue } from './workQueue'
+import { FlowSetupError } from '@shared/flowErrors'
 
-export type QueueName = 'higgsfield' | 'flow2api' | 'flow2api-sheet' | 'tts' | 'whisper' | 'export'
+export type QueueName = 'higgsfield' | 'flow2api' | 'flow2api-sheet' | 'flow2api-video' | 'tts' | 'whisper' | 'export'
 
 export interface TaskCtx {
   jobId: string
@@ -17,32 +20,32 @@ export type Task = (ctx: TaskCtx) => Promise<string | void | { message: string }
 
 // Whisper uses most CPU cores by itself, so it runs one file at a time.
 // Sheets need their own lane: a scene may wait for a sheet queued after it.
-const LIMITS: Record<QueueName, number> = { higgsfield: 3, flow2api: 1, 'flow2api-sheet': 1, tts: 2, whisper: 1, export: 1 }
-const running: Record<QueueName, number> = { higgsfield: 0, flow2api: 0, 'flow2api-sheet': 0, tts: 0, whisper: 0, export: 0 }
-const waiting: Record<QueueName, (() => void)[]> = { higgsfield: [], flow2api: [], 'flow2api-sheet': [], tts: [], whisper: [], export: [] }
+const LIMITS: Record<QueueName, number> = { higgsfield: 3, flow2api: 2, 'flow2api-sheet': 1, 'flow2api-video': 1, tts: 2, whisper: 1, export: 1 }
+const queues = Object.fromEntries(Object.keys(LIMITS).map(name => [name, new WorkQueue(() => name === 'flow2api' ? getSettings().flowImageConcurrency : LIMITS[name as QueueName])])) as Record<QueueName, WorkQueue>
 const controllers = new Map<string, AbortController>()
+const pending = new Map<string, QueueName>()
+let flowPause: string | null = null
 
-function acquire(q: QueueName): Promise<void> {
-  if (running[q] < LIMITS[q]) {
-    running[q]++
-    return Promise.resolve()
+function pauseFlow(reason: string): void {
+  flowPause = reason
+  for (const name of Object.keys(queues) as QueueName[]) if (name.startsWith('flow2api')) queues[name].pause()
+  for (const [id, name] of pending) {
+    if (name.startsWith('flow2api')) emit.job(updateJob(id, { message: `Flow dijeda: ${reason}` }))
   }
-  return new Promise((resolve) =>
-    waiting[q].push(() => {
-      running[q]++
-      resolve()
-    })
-  )
 }
 
-function release(q: QueueName): void {
-  running[q]--
-  waiting[q].shift()?.()
+export function resumeFlowJobs(): void {
+  flowPause = null
+  for (const [id, name] of pending) if (name.startsWith('flow2api')) emit.job(updateJob(id, { message: null }))
+  // Sheets have an independent lane because scenes may wait for their sheets.
+  for (const name of Object.keys(queues) as QueueName[]) if (name.startsWith('flow2api')) queues[name].resume()
 }
 
 export function runJob(job: Job, queue: QueueName, task: Task): Job {
   const ctrl = new AbortController()
   controllers.set(job.id, ctrl)
+  pending.set(job.id, queue)
+  if (flowPause && queue.startsWith('flow2api')) emit.job(updateJob(job.id, { message: `Flow dijeda: ${flowPause}` }))
   let lastEmit = 0
   const ctx: TaskCtx = {
     jobId: job.id,
@@ -60,14 +63,11 @@ export function runJob(job: Job, queue: QueueName, task: Task): Job {
     }
   }
   void (async () => {
-    await acquire(queue)
-    if (ctrl.signal.aborted) {
-      release(queue)
-      controllers.delete(job.id)
-      emit.job(updateJob(job.id, { status: 'canceled', message: null }))
-      return
-    }
+    let release: (() => void) | undefined
     try {
+      release = await queues[queue].acquire(ctrl.signal)
+      pending.delete(job.id)
+      if (ctrl.signal.aborted) throw new Error('Canceled')
       emit.job(updateJob(job.id, { status: 'running', progress: 0.02 }))
       const result = await task(ctx)
       const extra =
@@ -75,6 +75,7 @@ export function runJob(job: Job, queue: QueueName, task: Task): Job {
       emit.job(updateJob(job.id, { status: 'done', progress: 1, ...extra }))
     } catch (e) {
       const canceled = ctrl.signal.aborted
+      if (!canceled && queue.startsWith('flow2api') && e instanceof FlowSetupError) pauseFlow(e.message)
       emit.job(
         updateJob(job.id, {
           status: canceled ? 'canceled' : 'failed',
@@ -84,7 +85,8 @@ export function runJob(job: Job, queue: QueueName, task: Task): Job {
       )
       if (!canceled) console.error(`[job ${job.kind}]`, e)
     } finally {
-      release(queue)
+      pending.delete(job.id)
+      release?.()
       controllers.delete(job.id)
     }
   })()

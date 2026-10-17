@@ -287,6 +287,7 @@ export interface AppSettings {
   customBaseUrl: string
   flowBaseUrl: string
   flowLocalEnabled: boolean
+  flowImageConcurrency: number
   geminiTtsModel: string
   elevenModel: string
   /** Media models for new projects; Flow2API IDs have a flow2api: prefix. */

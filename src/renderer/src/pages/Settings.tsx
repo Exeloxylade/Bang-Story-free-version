@@ -569,6 +569,10 @@ function FlowSection({ settings, status, onChanged }: { settings: AppSettings; s
     <SectionTitle icon={<Film className="size-5" />} title="Google Flow" sub="Hubungkan akun Google untuk membuat gambar dan video. Tambahkan akun lain kapan saja." />
     <Card>
       <FlowSetupSection settings={settings} onChanged={onChanged} />
+      <Field label="Gambar Flow paralel">
+        <Select label="Gambar Flow paralel" value={String(settings.flowImageConcurrency)} options={Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} gambar` }))} onChange={value => { void window.api.settings.set({ flowImageConcurrency: Number(value) }).then(onChanged).catch(e => toast('error', errorText(e))) }} />
+      </Field>
+      <p className="text-xs text-muted">Bawaan 2 gambar sekaligus. Batas akun, server, dan penyedia CAPTCHA tetap berlaku. Jika verifikasi gagal, antrean dijeda sampai kamu melanjutkannya di Storyboard.</p>
       {!settings.flowLocalEnabled && <details className="space-y-3">
       <summary className="cursor-pointer text-sm font-semibold">Pakai server Flow2API sendiri</summary>
       <Field label="Alamat server Flow2API">

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import { FLOW_PREFIX, flowModelId } from '@shared/media'
+import { flowFailure } from '@shared/flowErrors'
 import type { KeyTestResult, ModelOption } from '@shared/types'
 import { requireSecret } from '../secrets'
 import { getSettings } from '../settings'
@@ -53,7 +54,10 @@ export async function generate(id: string, prompt: string, images: string[], kin
     headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images.map(url => ({ type: 'image_url', image_url: { url } }))] }], stream: true })
   })
-  if (!res.ok || !res.body) throw new Error(`Flow2API gagal (HTTP ${res.status}). Periksa server dan kunci API.`)
+  if (!res.ok || !res.body) {
+    const failure = await res.json().catch(() => ({})) as { error?: unknown }
+    throw flowFailure(failure.error)
+  }
   let content = ''
   if (res.headers.get('content-type')?.includes('text/event-stream')) {
     const reader = res.body.getReader()
@@ -64,7 +68,7 @@ export async function generate(id: string, prompt: string, images: string[], kin
       const data = line.slice(5).trim()
       if (!data || data === '[DONE]') return
       const chunk = JSON.parse(data) as { error?: unknown; choices?: { delta?: { content?: string; reasoning_content?: string } }[] }
-      if (chunk.error) throw new Error('Flow2API gagal membuat media. Periksa login Flow dan kuota di server.')
+      if (chunk.error) throw flowFailure(chunk.error)
       for (const choice of chunk.choices ?? []) {
         content += choice.delta?.content ?? ''
         if (choice.delta?.reasoning_content) progress('Flow2API sedang membuat media…')
@@ -82,7 +86,7 @@ export async function generate(id: string, prompt: string, images: string[], kin
     } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
   } else {
     const body = await res.json() as { error?: unknown; choices?: { message?: { content?: string } }[] }
-    if (body.error) throw new Error('Flow2API gagal membuat media. Periksa server.')
+    if (body.error) throw flowFailure(body.error)
     content = body.choices?.[0]?.message?.content ?? ''
   }
   const link = kind === 'image' ? /!\[[^\]]*\]\(([^\s)]+)\)/.exec(content)?.[1] : /<video\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i.exec(content)?.[1]

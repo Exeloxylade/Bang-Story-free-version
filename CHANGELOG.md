@@ -9,6 +9,8 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Jumlah gambar Flow paralel dapat diatur 1–8 (bawaan 2). Kegagalan verifikasi menjeda antrean yang belum mulai, dengan tombol lanjutkan di Storyboard. Job yang sedang berjalan tetap menyelesaikan permintaannya.
+- Connector 1.1.4 membedakan kegagalan jaringan loader, pembatasan kebijakan halaman, API CAPTCHA yang tidak tersedia, dan penolakan token. Koneksi dan kredit yang berhasil belum membuktikan CAPTCHA siap.
 - Kegagalan pairing dibedakan dari penolakan sesi Google, jaringan, atau penyimpanan lokal; pesan error tidak lagi dihapus oleh pemeriksaan akun berkala. Pendaftaran akun terverifikasi tidak menunggu kueri kredit atau pembuatan proyek.
 - Pairing Flow Account Connector dari Chrome/Edge milik pengguna: login normal, kode sekali pakai, pembatalan dan reconnect terikat identitas, serta panduan pemasangan extension. Alur koneksi baru menggantikan popup login otomatis yang dapat ditolak Google.
 - Integrasi bersama fork Flow2API: helper login berada di server dan registrasi sesi memakai endpoint admin khusus yang memverifikasi identitas akun Google sebelum menyimpan sesi.
