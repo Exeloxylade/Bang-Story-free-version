@@ -16,7 +16,7 @@ import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '718767d9e14cc260c070b6d66b76795277e8820a'
+const REV = '34bf74ad02813bc0665d224080ad9ef53563230e'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -98,12 +98,10 @@ sys.path.insert(0, os.getcwd())
 from src.core.config import config
 from src.core.database import Database
 config.get_raw_config()['server'].update(host='127.0.0.1', port=8765)
-config.get_raw_config()['captcha']['captcha_method'] = 'personal'
 config.get_raw_config()['debug'].update(enabled=False, log_requests=False, log_responses=False)
 original_reload = Database.reload_config_to_memory
 async def reload_config(self):
     await original_reload(self)
-    config.get_raw_config()['captcha']['captcha_method'] = 'personal'
     config.get_raw_config()['debug'].update(enabled=False, log_requests=False, log_responses=False)
     config.get_raw_config()['global']['api_key'] = os.environ['BANG_FLOW_KEY']
     config.admin_username = 'admin'

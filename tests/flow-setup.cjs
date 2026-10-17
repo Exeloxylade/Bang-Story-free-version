@@ -91,6 +91,44 @@ test('reconnect binds the server pairing to an existing account ID', async () =>
   } finally {f.clean()}
 })
 
+test('server runner preserves the selected CAPTCHA provider at startup and after database reload', async () => {
+  const f = fixture()
+  try {
+    await f.api.connectFlowAccount()
+    const runner = fs.readFileSync(path.join(f.root, 'source/bang-story-runner.py'), 'utf8')
+    const harness = `
+import asyncio, os, sys, types
+settings={'captcha':{'captcha_method':'extension'},'server':{},'debug':{},'global':{}}
+class Config:
+    def get_raw_config(self): return settings
+config=Config()
+class Database:
+    async def reload_config_to_memory(self):
+        settings['captcha']['captcha_method']='extension'
+def module(name, **members):
+    value=types.ModuleType(name)
+    value.__dict__.update(members)
+    sys.modules[name]=value
+for name in ['src','src.core','src.services']: module(name)
+module('src.core.config',config=config)
+module('src.core.database',Database=Database)
+module('src.main',app=object())
+module('src.services.browser_captcha_personal',BrowserCaptchaService=type('FakeBrowser',(),{}))
+def run(app, **options):
+    assert settings['captcha']['captcha_method']=='extension', 'startup overwrote provider'
+    asyncio.run(Database().reload_config_to_memory())
+    assert settings['captcha']['captcha_method']=='extension', 'reload overwrote provider'
+module('uvicorn',run=run)
+os.environ['BANG_FLOW_KEY']='fixture-api'
+os.environ['BANG_FLOW_ADMIN']='fixture-admin'
+exec(sys.stdin.read(),{})
+print('provider preserved')
+`
+    const output = require('node:child_process').execFileSync(process.env.PYTHON || 'python', ['-c', harness], {input: runner, encoding: 'utf8', windowsHide: true})
+    assert.match(output, /provider preserved/)
+  } finally {f.clean()}
+})
+
 test('paired browser accounts require their live tab and a successful credit check, independent of marker expiry', async () => {
   const f = fixture()
   try {
