@@ -16,7 +16,7 @@ import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '6048cabddf03825e9d2bef35fcd966dbec864f6f'
+const REV = 'add6ad376149df8b35d806064804b1fe21917504'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -193,12 +193,13 @@ export async function checkFlowAccount(): Promise<FlowSetupStatus> {
     const auth = await login()
     const res = await fetch(`${LOCAL_FLOW_URL}/api/tokens`, { headers: { Authorization: `Bearer ${auth}` }, signal: AbortSignal.timeout(10_000) })
     if (!res.ok) { adminSession = null; throw new Error('Akun belum bisa diperiksa. Coba lagi.') }
-    const tokens = await res.json() as { id: number; email: string; is_active?: boolean; at?: string; at_expired?: boolean }[]
+    const tokens = await res.json() as { id: number; email: string; is_active?: boolean; at?: string; at_expired?: boolean; browser_bridge?: boolean; browser_connected?: boolean; credits_updated_at?: string | null }[]
     if (!Array.isArray(tokens)) throw new Error('Daftar akun tidak valid')
     if (server !== child || stopping) return flowSetupStatus()
-    const count = tokens.filter(t => t.is_active && !!t.at && !t.at_expired).length
+    const ready = (t: typeof tokens[number]): boolean => !!t.is_active && (t.browser_bridge ? !!t.browser_connected && !!t.credits_updated_at : !!t.at && !t.at_expired)
+    const count = tokens.filter(ready).length
     recordCheck('flow2api-local', count > 0, count ? 'Akun Flow terhubung' : 'Hubungkan akun Flow dulu')
-    report({ accountReady: count > 0, activeAccounts: count, accounts: tokens.map(t => ({ id: t.id, email: t.email, enabled: !!t.is_active, ready: !!t.is_active && !!t.at && !t.at_expired })), error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : 'Klik Hubungkan Google Flow untuk login.' })
+    report({ accountReady: count > 0, activeAccounts: count, accounts: tokens.map(t => ({ id: t.id, email: t.email, enabled: !!t.is_active, ready: ready(t) })), error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : tokens.some(t => t.browser_bridge) ? 'Buka tab studio Flow yang sudah dipasangkan dan biarkan extension aktif. Klik Periksa akun setelah browser terhubung.' : 'Klik Hubungkan Google Flow untuk login.' })
   } catch { if (server && !stopping) { recordCheck('flow2api-local', false, 'Akun belum bisa diperiksa'); report({ accountReady: false, activeAccounts: 0, accounts: status.accounts.map(a => ({ ...a, ready: false })), error: 'Akun belum bisa diperiksa. Buka panel atau coba lagi.' }) } }
   return flowSetupStatus()
 }
@@ -215,7 +216,7 @@ async function startFlowServer(): Promise<void> {
   if (!installed() || setup) throw new Error('Pasang Flow2API sampai selesai dulu.')
   if (!sourceIsCurrent()) throw new Error('Flow2API English perlu dipasang. Klik Pasang ulang; akun dan pengaturan lama akan disimpan.')
   stopping = false
-  report({ state: 'starting', message: 'Membuka Flow2API dan browser login', error: null, accountReady: false })
+  report({ state: 'starting', message: 'Menjalankan Flow2API. Biarkan tab studio Flow yang sudah dipasangkan tetap terbuka.', error: null, accountReady: false })
   try {
     diagnostic('Checking local port')
     await checkPort()
@@ -349,8 +350,14 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
       await sleep(1000)
     }
     if (connectedId === undefined) throw new Error('Waktu pairing habis. Klik Hubungkan Google Flow untuk mencoba lagi.')
-    await checkFlowAccount()
-    if (!status.accounts.some(a => a.id === connectedId && a.ready)) throw new Error('Akun tersimpan, tetapi belum siap. Klik Periksa akun atau hubungkan ulang.')
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (ctrl.signal.aborted) throw new Error('Login dibatalkan.')
+      await checkFlowAccount()
+      if (status.accounts.some(a => a.id === connectedId && a.ready)) break
+      report({ message: 'Menunggu koneksi tab Flow dan pemeriksaan akun. Biarkan studio dan extension terbuka…' })
+      await sleep(1000)
+    }
+    if (!status.accounts.some(a => a.id === connectedId && a.ready)) throw new Error('Akun tersimpan, tetapi tab Flow belum siap atau pemeriksaan kredit gagal. Biarkan studio terbuka lalu klik Periksa akun.')
     setSettings({ imageModel: defaultFlowModel('image', '16:9'), videoModel: defaultFlowModel('video', '16:9') })
     report({ message: 'Akun terhubung. Google Flow siap untuk proyek baru.', error: null })
   } catch (e) {

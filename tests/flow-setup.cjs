@@ -90,6 +90,21 @@ test('reconnect binds the server pairing to an existing account ID', async () =>
     assert.equal(f.tokens.length, 1)
   } finally {f.clean()}
 })
+
+test('paired browser accounts require their live tab and a successful credit check, independent of marker expiry', async () => {
+  const f = fixture()
+  try {
+    await f.api.connectFlowAccount()
+    Object.assign(f.tokens[0], {browser_bridge: true, browser_connected: false, credits_updated_at: '2026-10-17T00:00:00Z'})
+    assert.equal((await f.api.checkFlowAccount()).accountReady, false)
+    f.tokens[0].browser_connected = true
+    f.tokens[0].credits_updated_at = null
+    assert.equal((await f.api.checkFlowAccount()).accountReady, false)
+    f.tokens[0].credits_updated_at = '2026-10-17T00:00:00Z'
+    f.tokens[0].at_expired = true
+    assert.equal((await f.api.checkFlowAccount()).accountReady, true)
+  } finally {f.clean()}
+})
 test('cancel invalidates the server pairing, clears its code, and leaves the normal browser alone', async () => {
   const f = fixture()
   try {
