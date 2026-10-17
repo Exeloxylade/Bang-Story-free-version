@@ -16,7 +16,7 @@ import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = 'e250157b51833006bcd9f4be8a3b3571e00ec098'
+const REV = 'bdd0a7e9cdc4b06d1c1ed33ae6b3da1ccf745caa'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
