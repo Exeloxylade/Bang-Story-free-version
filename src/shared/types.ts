@@ -310,6 +310,13 @@ export interface WhisperStatus {
   error: string | null
 }
 
+export interface FlowAccount {
+  id: number
+  email: string
+  ready: boolean
+  enabled: boolean
+}
+
 export interface FlowSetupStatus {
   state: 'unsupported' | 'missing' | 'installing' | 'installed' | 'starting' | 'running' | 'error'
   installed: boolean
@@ -318,6 +325,8 @@ export interface FlowSetupStatus {
   error: string | null
   accountReady: boolean
   activeAccounts: number
+  connecting: boolean
+  accounts: FlowAccount[]
 }
 
 export interface ModelOption {

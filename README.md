@@ -38,6 +38,14 @@ Semua proyek, gambar, video, dan suara disimpan di komputermu. Kamu memakai kunc
 
 ## Fitur
 
+### Google Flow: login langsung dari Bang Story
+
+Di **Pengaturan → Google Flow**, klik **Hubungkan Google Flow**. Saat pertama kali, Bang Story memasang kebutuhan dan menjalankan layanan lokal otomatis. Login di browser yang terbuka sampai halaman Google Flow tampil; sesi akan diperiksa dan akun ditambahkan otomatis. Tidak perlu menyalin cookie atau mengisi kunci API lokal.
+
+Klik **Tambah akun Google** untuk akun berikutnya. Setiap akun punya profil login sendiri; tersedia **Hubungkan ulang** dan **Hapus** di daftar akun. Google Flow dipilih untuk gambar dan video proyek baru setelah akun berhasil terhubung. Kamu tetap perlu akses Google Flow, kuota, dan menyelesaikan verifikasi Google bila diminta. Fitur pemasangan/login otomatis tersedia untuk Windows 64-bit.
+
+Panel server dan server eksternal tetap tersedia di pengaturan lanjutan. Detail penyimpanan sesi dan pengujian ada di [dokumentasi layanan AI](docs/layanan-ai.md#flow2api-english-lokal-flowsetupts).
+
 **1. Ide cerita**
 - Tulis ide atau sinopsis, lalu atur:
   - durasi (30 detik sampai 10 menit);
