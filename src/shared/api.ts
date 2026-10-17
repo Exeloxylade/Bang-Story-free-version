@@ -109,6 +109,7 @@ export interface StudioApi {
     stop(): Promise<void>
     setEnabled(enabled: boolean): Promise<void>
     openPanel(): Promise<void>
+    openConnectorGuide(): Promise<void>
     check(): Promise<FlowSetupStatus>
     useDefaults(): Promise<void>
     connect(accountId?: number): Promise<void>

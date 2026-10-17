@@ -40,9 +40,9 @@ Semua proyek, gambar, video, dan suara disimpan di komputermu. Kamu memakai kunc
 
 ### Google Flow: login langsung dari Bang Story
 
-Di **Pengaturan → Google Flow**, klik **Hubungkan Google Flow**. Saat pertama kali, Bang Story memasang kebutuhan dan menjalankan layanan lokal otomatis. Login di browser yang terbuka sampai halaman Google Flow tampil; sesi akan diperiksa dan akun ditambahkan otomatis. Tidak perlu menyalin cookie atau mengisi kunci API lokal.
+Di **Pengaturan → Google Flow**, klik **Hubungkan Google Flow**. Saat pertama kali, Bang Story memasang kebutuhan dan menjalankan layanan lokal otomatis. Klik **Pasang extension / panduan** untuk memasang Flow Account Connector sekali. Salin kode pairing, login ke studio Flow di browser kamu sendiri, lalu buka extension dan klik **Connect this account**; sesi diperiksa dan akun ditambahkan otomatis. Tidak perlu menyalin cookie atau mengisi kunci API lokal.
 
-Klik **Tambah akun Google** untuk akun berikutnya. Setiap akun punya profil login sendiri; tersedia **Hubungkan ulang** dan **Hapus** di daftar akun. Google Flow dipilih untuk gambar dan video proyek baru setelah akun berhasil terhubung. Kamu tetap perlu akses Google Flow, kuota, dan menyelesaikan verifikasi Google bila diminta. Fitur pemasangan/login otomatis tersedia untuk Windows 64-bit.
+Klik **Tambah akun Google** untuk akun berikutnya. Gunakan profil Chrome/Edge milik setiap akun; tersedia **Hubungkan ulang** dan **Hapus** di daftar akun. Google Flow dipilih untuk gambar dan video proyek baru setelah akun berhasil terhubung. Kamu tetap perlu akses Google Flow, kuota, dan menyelesaikan verifikasi Google bila diminta. Fitur pemasangan/login otomatis tersedia untuk Windows 64-bit.
 
 Panel server dan server eksternal tetap tersedia di pengaturan lanjutan. Detail penyimpanan sesi dan pengujian ada di [dokumentasi layanan AI](docs/layanan-ai.md#flow2api-english-lokal-flowsetupts).
 

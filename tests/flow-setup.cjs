@@ -1,167 +1,148 @@
 const assert = require('node:assert/strict')
-const { test } = require('node:test')
+const {test} = require('node:test')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { EventEmitter } = require('node:events')
+const {EventEmitter} = require('node:events')
 const ts = require('typescript')
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bang-flow-setup-'))
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bang-flow-pairing-'))
   const source = fs.readFileSync(path.join(__dirname, '../src/main/flowSetup.ts'), 'utf8')
   const revision = source.match(/const REV = '([^']+)'/)[1]
-  fs.mkdirSync(path.join(root, 'source'), { recursive: true })
-  fs.mkdirSync(path.join(root, 'python'), { recursive: true })
-  fs.mkdirSync(path.join(root, 'browsers/chromium-test/chrome-win'), { recursive: true })
-  for (const file of ['source/main.py', 'python/python.exe', 'browsers/chromium-test/chrome-win/chrome.exe']) fs.writeFileSync(path.join(root, file), '')
-  fs.writeFileSync(path.join(root, 'installed.json'), JSON.stringify({ repository: 'Exeloxylade/flow2api-English', revision }))
-  const tokens = [], mutations = [], events = []
-  let identity = 'one@example.com', failCheck = false, discarded = false, committed = false
-  let settings = { flowLocalEnabled: false }
-  let captureHook
+  for (const file of ['source/main.py', 'python/python.exe', 'browsers/chromium-test/chrome-win/chrome.exe']) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true})
+    fs.writeFileSync(path.join(root, file), '')
+  }
+  fs.writeFileSync(path.join(root, 'installed.json'), JSON.stringify({repository: 'Exeloxylade/flow2api-English', revision}))
+  const tokens = [], requests = [], events = [], opened = [], spawns = []
+  const state = {email: 'one@example.com', failCheck: false, phase: 'ready', onOpen: null, replacedJob: false}
+  let settings = {flowLocalEnabled: false}
   const secrets = new Map()
-  const child = new EventEmitter(); child.pid = 123; child.exitCode = null
+  const child = new EventEmitter(); child.pid = 123; child.exitCode = null; child.stderr = new EventEmitter()
   const deps = {
-    'node:child_process': { spawn: () => child, execFileSync: () => {} },
-    'node:net': { createServer: () => ({ once() {}, listen(_port, _host, cb) { cb() }, close(cb) { cb() } }) },
-    electron: { BrowserWindow: class {}, session: {} },
-    '@shared/media': { defaultFlowModel: kind => 'flow2api:' + kind },
-    './paths': { dataDir: () => path.dirname(path.dirname(root)) },
-    './secrets': { getSecret: k => secrets.get(k), requireSecret: k => secrets.get(k), setSecret: (k, v) => secrets.set(k, v), recordCheck() {} },
-    './settings': { getSettings: () => settings, setSettings: value => { settings = { ...settings, ...value } } },
-    './events': { emit: { flow: value => events.push(value) } },
-    './services/http': { sleep: async () => {} },
-    './flowSource': { replaceFlowSource() {} },
-    './flowAccounts': {
-      captureFlowLogin: async options => {
-        if (captureHook) await captureHook(options)
-        return { email: identity, google_cookies: 'private-cookies', commit() { committed = true }, discard() { discarded = true } }
-      },
-      removeAccountProfile() {}
-    }
+    'node:child_process': {spawn: (_file, args) => {spawns.push(args); return child}, execFileSync() {}},
+    'node:net': {createServer: () => ({once() {}, listen(_p, _h, cb) {cb()}, close(cb) {cb()}})},
+    electron: {BrowserWindow: class {}, session: {}, shell: {openExternal: async url => {opened.push(url); if (state.onOpen) await state.onOpen()}}},
+    '@shared/media': {defaultFlowModel: kind => 'flow2api:' + kind},
+    './paths': {dataDir: () => root},
+    './secrets': {getSecret: k => secrets.get(k), requireSecret: k => secrets.get(k), setSecret: (k, v) => secrets.set(k, v), recordCheck() {}},
+    './settings': {getSettings: () => settings, setSettings: value => {settings = {...settings, ...value}}},
+    './events': {emit: {flow: value => events.push(value)}},
+    './services/http': {sleep: async () => {}},
+    './flowSource': {replaceFlowSource() {}},
+    './flowAccounts': {captureFlowLogin() {throw Error('Automated login must not run')}, removeAccountProfile() {}}
   }
-  // Keep the real path helpers, but redirect the managed installation to this disposable fixture.
-  const js = ts.transpileModule(source.replace("join(dataDir(), 'tools', 'flow2api')", JSON.stringify(root)), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2023 } }).outputText
+  const job = '12345678-1234-1234-1234-123456789abc'
   async function fetchMock(url, options = {}) {
-    let result = { success: true }
-    if (url.endsWith('/api/admin/login')) result = { token: 'private-admin-session' }
-    else if (url.endsWith('/v1/models')) result = { data: [] }
-    else if (url.endsWith('/api/tokens') && !options.method) {
-      if (failCheck) return { ok: false, status: 500 }
-      result = tokens.map(t => ({ ...t }))
-    } else {
-      mutations.push({ url, method: options.method, body: options.body })
-      const match = url.match(/\/api\/tokens\/(\d+)/)
-      if (url.endsWith('/browser-session')) {
-        const email = JSON.parse(options.body).login_account
-        const existing = tokens.find(t => t.email === email)
-        if (existing) Object.assign(existing, { is_active: true, at_expired: false })
-        else tokens.push({ id: tokens.length + 1, email, is_active: true, at: 'private-at', at_expired: false })
-      }
-      if (options.method === 'PUT') Object.assign(tokens.find(t => t.id === Number(match[1])), { at_expired: false })
-      if (url.endsWith('/enable')) tokens.find(t => t.id === Number(match[1])).is_active = true
-      if (options.method === 'DELETE') tokens.splice(tokens.findIndex(t => t.id === Number(match[1])), 1)
+    if (options.signal?.aborted) throw new Error('Aborted')
+    requests.push({url, method: options.method, body: options.body})
+    let result = {success: true}
+    if (url.endsWith('/api/admin/login')) result = {token: 'private-admin-session'}
+    else if (url.endsWith('/v1/models')) result = {data: []}
+    else if (url.endsWith('/api/tokens')) {
+      if (state.failCheck) return {ok: false, status: 500}
+      result = tokens.map(t => ({...t}))
+    } else if (url.endsWith('/browser-login/start')) result = {job_id: job, phase: 'login', pairing_code: '8765:' + 'a'.repeat(64)}
+    else if (url.endsWith('/browser-login/status')) {
+      if (state.phase === 'ready') {
+        let existing = tokens.find(t => t.email === state.email)
+        if (!existing) {existing = {id: tokens.length + 1, email: state.email}; tokens.push(existing)}
+        Object.assign(existing, {is_active: true, at: 'private-at', at_expired: false})
+        result = {job_id: state.replacedJob ? 'other-job' : job, phase: 'ready', account: {id: existing.id, email: state.email}}
+      } else result = {job_id: job, phase: state.phase}
     }
-    return { ok: true, status: 200, json: async () => result }
+    return {ok: true, status: 200, json: async () => result}
   }
-  const module = { exports: {} }
+  const js = ts.transpileModule(source.replace("join(dataDir(), 'tools', 'flow2api')", JSON.stringify(root)), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2023}}).outputText
+  const module = {exports: {}}
   new Function('require', 'module', 'exports', 'fetch', js)(name => deps[name] ?? require(name), module, module.exports, fetchMock)
-  return { root, api: module.exports, tokens, mutations, events, identity: value => { identity = value }, failCheck: () => { failCheck = true }, capture: fn => { captureHook = fn }, get settings() { return settings }, get committed() { return committed }, get discarded() { return discarded }, clean: () => fs.rmSync(root, { recursive: true, force: true }) }
+  return {root, api: module.exports, state, tokens, requests, events, opened, spawns, child, get settings() {return settings}, clean: () => fs.rmSync(root, {recursive: true, force: true})}
 }
 
-test('connect enables local mode, registers once, adds another account and reconnects without duplicates', async () => {
+test('connect pairs the normal browser, adds accounts, and never launches a login helper or transfers cookies through IPC', async () => {
   const f = fixture()
   try {
     await f.api.connectFlowAccount()
-    assert.equal(f.settings.flowLocalEnabled, true)
     assert.equal(f.settings.imageModel, 'flow2api:image')
-    assert.equal(f.committed, true)
+    assert.equal(f.api.flowSetupStatus().accountReady, true)
+    assert.ok(f.events.some(s => s.pairingCode === '8765:' + 'a'.repeat(64)))
+    assert.equal(f.api.flowSetupStatus().pairingCode, null)
+    assert.deepEqual(f.opened, ['https://flow.google.com/'])
+    assert.equal(f.spawns.length, 1)
+    assert.match(f.spawns[0][0], /bang-story-runner\.py$/)
+    assert.equal(JSON.stringify(f.events).includes('private-'), false)
+    assert.equal(JSON.stringify(f.requests).includes('google_cookies'), false)
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 1)
-    assert.equal(f.mutations[1].method, 'POST')
-    assert.equal(f.mutations[1].url.endsWith('/browser-session'), true)
-    assert.deepEqual(Object.keys(JSON.parse(f.mutations[1].body)).sort(), ['google_cookies', 'login_account'])
-    f.identity('two@example.com')
+    f.state.email = 'two@example.com'
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 2)
-    const status = f.api.flowSetupStatus()
-    assert.equal(status.activeAccounts, 2)
-    assert.equal(status.connecting, false)
-    assert.equal(JSON.stringify(status).includes('private-'), false)
-    assert.equal(JSON.stringify(f.events).includes('private-'), false)
-    await f.api.removeFlowAccount(1)
-    assert.equal(f.tokens.length, 1)
-  } finally { f.clean() }
+  } finally {f.clean()}
 })
-
-test('reconnect forwards the account ID to the server identity check', async () => {
+test('reconnect binds the server pairing to an existing account ID', async () => {
   const f = fixture()
   try {
     await f.api.connectFlowAccount()
-    f.capture(async options => { assert.equal(options.email, 'one@example.com'); assert.ok(options.script.endsWith('browser_login.py')) })
     await f.api.connectFlowAccount(1)
-    assert.equal(JSON.parse(f.mutations[1].body).expected_account_id, 1)
+    const starts = f.requests.filter(r => r.url.endsWith('/browser-login/start'))
+    assert.deepEqual(JSON.parse(starts[1].body), {expected_account_id: 1})
     assert.equal(f.tokens.length, 1)
-  } finally { f.clean() }
+  } finally {f.clean()}
 })
-
-test('failed account listing prevents registration using stale account state', async () => {
+test('cancel invalidates the server pairing, clears its code, and leaves the normal browser alone', async () => {
   const f = fixture()
   try {
-    await f.api.connectFlowAccount()
-    f.failCheck()
-    await assert.rejects(f.api.connectFlowAccount(), /examine|diperiksa/)
-    assert.equal(f.mutations.length, 1)
-    assert.equal(f.api.flowSetupStatus().accountReady, false)
-  } finally { f.clean() }
-})
-
-test('cancelled login does not register credentials and releases connection lock', async () => {
-  const f = fixture()
-  try {
-    f.capture(async options => {
+    f.state.onOpen = async () => {
       await assert.rejects(f.api.connectFlowAccount(), /sedang berjalan/)
       f.api.cancelFlowConnect()
-      assert.equal(options.signal.aborted, true)
-    })
+    }
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 0)
-    assert.equal(f.discarded, true)
+    assert.equal(f.api.flowSetupStatus().pairingCode, null)
     assert.equal(f.api.flowSetupStatus().connecting, false)
-    f.capture(undefined)
+    assert.ok(f.requests.some(r => r.url.endsWith('/browser-login/cancel')))
+    f.state.onOpen = null
     await f.api.connectFlowAccount()
     assert.equal(f.tokens.length, 1)
-  } finally { f.clean() }
+  } finally {f.clean()}
 })
-
-test('invalid account IDs are rejected before side effects', async () => {
+test('failed verification clears pairing and does not select Flow models', async () => {
+  const f = fixture()
+  try {
+    f.state.phase = 'error'
+    await assert.rejects(f.api.connectFlowAccount(), /terverifikasi/)
+    assert.equal(f.settings.imageModel, undefined)
+    assert.equal(f.api.flowSetupStatus().pairingCode, null)
+  } finally {f.clean()}
+})
+test('a stale account check prevents creating a new pairing', async () => {
+  const f = fixture()
+  try {
+    f.state.failCheck = true
+    await assert.rejects(f.api.connectFlowAccount(), /diperiksa/)
+    assert.equal(f.opened.length, 0)
+    assert.equal(f.requests.some(r => r.url.endsWith('/browser-login/start')), false)
+  } finally {f.clean()}
+})
+test('guide opens in the normal browser and diagnostic logging excludes raw stderr', async () => {
+  const f = fixture()
+  try {
+    await assert.rejects(f.api.openFlowConnectorGuide(), /dulu/)
+    await f.api.connectFlowAccount()
+    await f.api.openFlowConnectorGuide()
+    assert.equal(f.opened[1], 'http://127.0.0.1:8765/setup')
+    f.child.stderr.emit('data', Buffer.from('ModuleNotFoundError: private-key and private-cookies'))
+    const log = fs.readFileSync(path.join(f.root, 'startup.log'), 'utf8')
+    assert.match(log, /Server error category: ModuleNotFoundError/)
+    assert.equal(log.includes('private-'), false)
+  } finally {f.clean()}
+})
+test('invalid or removed reconnect IDs are rejected before pairing', async () => {
   const f = fixture()
   try {
     await assert.rejects(f.api.connectFlowAccount(-1), /tidak valid/)
-    await assert.rejects(f.api.removeFlowAccount('../1'), /tidak valid/)
-    assert.equal(f.mutations.length, 0)
-  } finally { f.clean() }
-})
-
-test('login selects installed Edge and lifecycle logs contain no session credentials', async () => {
-  const f = fixture()
-  const previous = process.env.PROGRAMFILES
-  const browserRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bang-edge-'))
-  try {
-    const edge = path.join(browserRoot, 'Microsoft/Edge/Application/msedge.exe')
-    fs.mkdirSync(path.dirname(edge), { recursive: true })
-    fs.writeFileSync(edge, '')
-    process.env.PROGRAMFILES = browserRoot
-    f.capture(async options => assert.equal(options.chromium, edge))
-    await f.api.connectFlowAccount()
-    const log = fs.readFileSync(path.join(f.root, 'startup.log'), 'utf8')
-    assert.match(log, /Server is ready/)
-    assert.equal(log.includes('private-'), false)
-    assert.equal(log.includes('Bearer'), false)
-  } finally {
-    if (previous === undefined) delete process.env.PROGRAMFILES
-    else process.env.PROGRAMFILES = previous
-    fs.rmSync(browserRoot, { recursive: true, force: true })
-    f.clean()
-  }
+    await assert.rejects(f.api.connectFlowAccount(99), /tersedia/)
+    assert.equal(f.opened.length, 0)
+  } finally {f.clean()}
 })

@@ -3,7 +3,7 @@ import { randomBytes, createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createServer } from 'node:net'
-import { BrowserWindow, session } from 'electron'
+import { BrowserWindow, session, shell } from 'electron'
 import type { FlowSetupStatus } from '@shared/types'
 import { defaultFlowModel } from '@shared/media'
 import { dataDir } from './paths'
@@ -12,11 +12,11 @@ import { getSettings, setSettings } from './settings'
 import { emit } from './events'
 import { sleep } from './services/http'
 import { replaceFlowSource } from './flowSource'
-import { captureFlowLogin, removeAccountProfile } from './flowAccounts'
+import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '13e4fc63c22f3b27aeb59fc8a7d8d73df4f5373a'
+const REV = '99ff08093fe81e1ea07cdd56b76030f41524a851'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -176,18 +176,6 @@ function chromium(): string {
   throw new Error('Browser belum terpasang. Klik Pasang lagi.')
 }
 
-function loginBrowser(): string {
-  // A private app profile keeps the user's ordinary browser sessions untouched.
-  for (const base of [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]) {
-    if (!base) continue
-    const chrome = join(base, 'Google', 'Chrome', 'Application', 'chrome.exe')
-    if (existsSync(chrome)) return chrome
-    const edge = join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe')
-    if (existsSync(edge)) return edge
-  }
-  return chromium()
-}
-
 async function login(): Promise<string> {
   if (!server || status.state !== 'running') throw new Error('Jalankan Flow2API lokal dulu.')
   if (adminSession) return adminSession
@@ -303,8 +291,7 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
   const ctrl = new AbortController()
   connection = ctrl
   report({ connecting: true, error: null, message: 'Menyiapkan Google Flow…' })
-  let captured: Awaited<ReturnType<typeof captureFlowLogin>> | undefined
-  let saved = false
+  let jobId: string | undefined
   try {
     setSettings({ flowLocalEnabled: true })
     if (installation) await installation
@@ -318,28 +305,55 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
     if (status.error) throw new Error(status.error)
     const existing = accountId === undefined ? undefined : status.accounts.find(a => a.id === accountId)
     if (accountId !== undefined && !existing) throw new Error('Akun sudah tidak tersedia. Periksa daftar akun lagi.')
-    report({ error: null, message: 'Login di browser yang terbuka sampai halaman Google Flow tampil. Akun akan tersambung otomatis.' })
-    captured = await captureFlowLogin({ root: root(), python: python(), chromium: loginBrowser(), script: join(source(), 'src', 'services', 'browser_login.py'), email: existing?.email.toLowerCase(), signal: ctrl.signal })
-    if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+    type Pairing = { job_id: string; phase: string; pairing_code?: string; account?: { id: number; email: string } }
+    const request = async (path: string, body?: unknown): Promise<Pairing> => {
+      const response = await fetch(`${LOCAL_FLOW_URL}/api/browser-login/${path}`, {
+        method: body === undefined ? 'GET' : 'POST',
+        headers: { Authorization: `Bearer ${await login()}`, 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.any([ctrl.signal, AbortSignal.timeout(10_000)])
+      })
+      if (!response.ok) throw new Error('Koneksi extension belum siap. Batalkan koneksi lain di panel, lalu coba lagi.')
+      return await response.json() as Pairing
+    }
+    const pairing = await request('start', accountId === undefined ? {} : { expected_account_id: accountId })
+    jobId = pairing.job_id
+    if (!/^8765:[a-f0-9]{64}$/.test(pairing.pairing_code ?? '')) throw new Error('Kode pairing tidak valid. Perbarui Flow2API lalu coba lagi.')
+    report({ error: null, pairingCode: pairing.pairing_code, message: 'Salin kode pairing. Login ke Flow di browser kamu sendiri, buka extension Flow Account Connector, lalu klik Connect this account.' })
+    await shell.openExternal('https://flow.google.com/')
+    let connectedId: number | undefined
+    for (let i = 0; i < 740; i++) {
+      if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
+      const current = await request('status')
+      if (current.job_id !== jobId) throw new Error('Pairing sudah berubah. Buat kode baru.')
+      if (current.phase === 'ready' && current.account) { connectedId = current.account.id; break }
+      if (current.phase === 'error' || current.phase === 'cancelled') throw new Error('Pairing kedaluwarsa atau akun belum terverifikasi. Buka studio Flow dengan akun yang benar, lalu buat kode baru.')
+      if (current.phase === 'saving') report({ pairingCode: null, message: 'Memeriksa dan menyimpan akun Flow…' })
+      await sleep(1000)
+    }
+    if (connectedId === undefined) throw new Error('Waktu pairing habis. Klik Hubungkan Google Flow untuk mencoba lagi.')
     await checkFlowAccount()
-    if (status.error) throw new Error(status.error)
-    report({ message: 'Memeriksa dan menyimpan akun Flow…' })
-    await accountRequest('/browser-session', 'POST', {
-      google_cookies: captured.google_cookies, login_account: captured.email,
-      expected_account_id: accountId
-    }, ctrl.signal)
-    saved = true
-    captured.commit()
-    await checkFlowAccount()
-    if (!status.accounts.some(a => a.email.toLowerCase() === captured!.email && a.ready)) throw new Error('Akun tersimpan, tetapi belum siap. Klik Periksa akun atau hubungkan ulang.')
+    if (!status.accounts.some(a => a.id === connectedId && a.ready)) throw new Error('Akun tersimpan, tetapi belum siap. Klik Periksa akun atau hubungkan ulang.')
     setSettings({ imageModel: defaultFlowModel('image', '16:9'), videoModel: defaultFlowModel('video', '16:9') })
     report({ message: 'Akun terhubung. Google Flow siap untuk proyek baru.', error: null })
   } catch (e) {
-    if (!saved) captured?.discard()
     const message = ctrl.signal.aborted ? 'Login dibatalkan. Kamu bisa mencoba lagi.' : (e as Error).message
     report({ error: ctrl.signal.aborted ? null : message, message })
     if (!ctrl.signal.aborted) throw new Error(message)
-  } finally { connection = null; report({ connecting: false }) }
+  } finally {
+    if (jobId) {
+      try {
+        await fetch(`${LOCAL_FLOW_URL}/api/browser-login/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${await login()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }), signal: AbortSignal.timeout(3000) })
+      } catch { /* Expired, completed or saving jobs need no client-side cleanup. */ }
+    }
+    connection = null
+    report({ connecting: false, pairingCode: null })
+  }
+}
+
+export async function openFlowConnectorGuide(): Promise<void> {
+  if (status.state !== 'running') throw new Error('Klik Hubungkan Google Flow dulu untuk menyiapkan layanan.')
+  await shell.openExternal(`${LOCAL_FLOW_URL}/setup`)
 }
 
 export async function removeFlowAccount(id: number): Promise<void> {

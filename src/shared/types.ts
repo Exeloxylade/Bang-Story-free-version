@@ -318,6 +318,7 @@ export interface FlowAccount {
 }
 
 export interface FlowSetupStatus {
+  pairingCode?: string | null
   state: 'unsupported' | 'missing' | 'installing' | 'installed' | 'starting' | 'running' | 'error'
   installed: boolean
   progress: number

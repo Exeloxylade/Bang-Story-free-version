@@ -84,6 +84,7 @@ const api: StudioApi = {
     stop: call('flowSetup:stop'),
     setEnabled: call('flowSetup:setEnabled'),
     openPanel: call('flowSetup:openPanel'),
+    openConnectorGuide: call('flowSetup:openConnectorGuide'),
     check: call('flowSetup:check'),
     useDefaults: call('flowSetup:useDefaults'),
     connect: call('flowSetup:connect'),

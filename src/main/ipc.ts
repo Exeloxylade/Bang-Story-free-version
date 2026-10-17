@@ -112,6 +112,7 @@ export function registerIpc(): void {
   handle('flowSetup:stop', () => flowSetup.stopFlow())
   handle('flowSetup:setEnabled', (enabled: boolean) => flowSetup.enableLocalFlow(enabled === true))
   handle('flowSetup:openPanel', () => flowSetup.openFlowPanel())
+  handle('flowSetup:openConnectorGuide', () => flowSetup.openFlowConnectorGuide())
   handle('flowSetup:check', () => flowSetup.checkFlowAccount())
   handle('flowSetup:useDefaults', () => flowSetup.useFlowDefaults())
   handle('flowSetup:connect', (id?: number) => flowSetup.connectFlowAccount(id))
