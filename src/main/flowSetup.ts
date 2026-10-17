@@ -16,7 +16,7 @@ import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '99ff08093fe81e1ea07cdd56b76030f41524a851'
+const REV = 'b326262f5787937cf6db4a48d577e8b25270b695'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -305,7 +305,7 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
     if (status.error) throw new Error(status.error)
     const existing = accountId === undefined ? undefined : status.accounts.find(a => a.id === accountId)
     if (accountId !== undefined && !existing) throw new Error('Akun sudah tidak tersedia. Periksa daftar akun lagi.')
-    type Pairing = { job_id: string; phase: string; pairing_code?: string; account?: { id: number; email: string } }
+    type Pairing = { job_id: string; phase: string; pairing_code?: string; error_code?: string; account?: { id: number; email: string } }
     const request = async (path: string, body?: unknown): Promise<Pairing> => {
       const response = await fetch(`${LOCAL_FLOW_URL}/api/browser-login/${path}`, {
         method: body === undefined ? 'GET' : 'POST',
@@ -327,7 +327,24 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
       const current = await request('status')
       if (current.job_id !== jobId) throw new Error('Pairing sudah berubah. Buat kode baru.')
       if (current.phase === 'ready' && current.account) { connectedId = current.account.id; break }
-      if (current.phase === 'error' || current.phase === 'cancelled') throw new Error('Pairing kedaluwarsa atau akun belum terverifikasi. Buka studio Flow dengan akun yang benar, lalu buat kode baru.')
+      if (current.phase === 'error' || current.phase === 'cancelled') {
+        const reasons: Record<string, string> = {
+          pairing_invalid: 'Kode pairing kedaluwarsa, dibatalkan, atau sudah dipakai. Salin kode baru sebelum mencoba lagi.',
+          account_mismatch: 'Server melihat akun Google yang berbeda. Gunakan profil browser akun Flow yang dimaksud.',
+          cookies_incomplete: 'Sesi belum lengkap. Buka studio Flow yang sudah login lalu hubungkan ulang.',
+          flow_signin_redirect: 'Kode pairing diterima, tetapi Google menolak sesi yang diteruskan ke server.',
+          flow_http_error: 'Google menolak permintaan verifikasi server. Periksa akses Flow dan koneksi internet.',
+          flow_frontend_changed: 'Halaman Flow berubah. Server membutuhkan pembaruan kompatibilitas.',
+          flow_identity_missing: 'Server tidak menemukan akun di halaman Flow. Buka studio kreatif lalu hubungkan ulang.',
+          flow_network_error: 'Server tidak bisa menghubungi Google Flow. Periksa internet atau proxy server.',
+          account_save_failed: 'Akun terverifikasi tetapi gagal disimpan. Periksa ruang disk lokal.',
+          verification_timeout: 'Verifikasi Flow terlalu lama. Periksa koneksi lalu buat kode baru.',
+          local_configuration_failed: 'Akun tersimpan tetapi pengaturan server gagal diperbarui. Mulai ulang layanan dan periksa akun.'
+        }
+        const code = current.error_code ?? ''
+        if (Object.hasOwn(reasons, code)) { diagnostic(`Account connection failed: ${code}`); throw new Error(`${reasons[code]} (${code})`) }
+        throw new Error('Kode pairing diterima tetapi akun belum terverifikasi. Periksa pesan extension, lalu buat kode baru.')
+      }
       if (current.phase === 'saving') report({ pairingCode: null, message: 'Memeriksa dan menyimpan akun Flow…' })
       await sleep(1000)
     }

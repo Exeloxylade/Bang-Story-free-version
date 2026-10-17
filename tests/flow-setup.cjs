@@ -50,7 +50,7 @@ function fixture() {
         if (!existing) {existing = {id: tokens.length + 1, email: state.email}; tokens.push(existing)}
         Object.assign(existing, {is_active: true, at: 'private-at', at_expired: false})
         result = {job_id: state.replacedJob ? 'other-job' : job, phase: 'ready', account: {id: existing.id, email: state.email}}
-      } else result = {job_id: job, phase: state.phase}
+      } else result = {job_id: job, phase: state.phase, error_code: state.error_code}
     }
     return {ok: true, status: 200, json: async () => result}
   }
@@ -123,6 +123,18 @@ test('a stale account check prevents creating a new pairing', async () => {
     await assert.rejects(f.api.connectFlowAccount(), /diperiksa/)
     assert.equal(f.opened.length, 0)
     assert.equal(f.requests.some(r => r.url.endsWith('/browser-login/start')), false)
+  } finally {f.clean()}
+})
+test('accepted pairing failures retain their safe reason instead of being called expired', async () => {
+  const f = fixture()
+  try {
+    f.state.phase = 'error'
+    f.state.error_code = 'flow_signin_redirect'
+    await assert.rejects(f.api.connectFlowAccount(), /flow_signin_redirect/)
+    assert.match(f.api.flowSetupStatus().error, /Kode pairing diterima/)
+    const log = fs.readFileSync(path.join(f.root, 'startup.log'), 'utf8')
+    assert.match(log, /Account connection failed: flow_signin_redirect/)
+    assert.equal(log.includes('private-'), false)
   } finally {f.clean()}
 })
 test('guide opens in the normal browser and diagnostic logging excludes raw stderr', async () => {

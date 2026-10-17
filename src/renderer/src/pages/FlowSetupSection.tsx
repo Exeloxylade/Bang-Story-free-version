@@ -14,10 +14,10 @@ export function FlowSetupSection({ settings, onChanged }: { settings: AppSetting
     return off
   }, [toast])
   useEffect(() => {
-    if (status?.state !== 'running' || status.connecting) return
+    if (status?.state !== 'running' || status.connecting || status.error) return
     const timer = setInterval(() => { void window.api.flowSetup.check().then(setStatus).catch(() => {}) }, 30_000)
     return () => clearInterval(timer)
-  }, [status?.state, status?.connecting])
+  }, [status?.state, status?.connecting, status?.error])
   const action = async (fn: () => Promise<unknown>): Promise<void> => {
     setBusy(true)
     try { await fn() }

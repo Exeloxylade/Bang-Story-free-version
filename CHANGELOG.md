@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Kegagalan pairing dibedakan dari penolakan sesi Google, jaringan, atau penyimpanan lokal; pesan error tidak lagi dihapus oleh pemeriksaan akun berkala. Pendaftaran akun terverifikasi tidak menunggu kueri kredit atau pembuatan proyek.
 - Pairing Flow Account Connector dari Chrome/Edge milik pengguna: login normal, kode sekali pakai, pembatalan dan reconnect terikat identitas, serta panduan pemasangan extension. Alur koneksi baru menggantikan popup login otomatis yang dapat ditolak Google.
 - Integrasi bersama fork Flow2API: helper login berada di server dan registrasi sesi memakai endpoint admin khusus yang memverifikasi identitas akun Google sebelum menyimpan sesi.
 - Pemasangan dan startup layanan Flow otomatis, serta pendaftaran sesi tanpa menyalin cookie. Akun dapat ditambah, dihubungkan ulang, atau dihapus dari Bang Story.
