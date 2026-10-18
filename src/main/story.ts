@@ -62,7 +62,8 @@ export async function generateScript(projectId: string): Promise<ProjectBundle> 
   const lang = languageOf(project.language)
   const count = clipCountFor(project.durationSec)
 
-  const system = scriptSystem(lang, getSettings().scriptInstructions)
+  const settings = getSettings()
+  const system = scriptSystem(lang, settings.scriptInstructions, settings.scriptInstructionsMode)
   const prompt = [
     `Idea / synopsis:\n${project.synopsis}`,
     `Target video length: about ${project.durationSec} seconds.`,
@@ -250,12 +251,16 @@ export async function generateVisuals(projectId: string, mode: 'missing' | 'all'
   if (!targets.length) return getBundle(projectId)
 
   const known = charactersOf(projectId)
-  const system = visualSystem(getSettings().visualInstructions)
+  const settings = getSettings()
+  const system = visualSystem(settings.visualInstructions, settings.visualInstructionsMode)
+  const style = getStyle(project.styleId, settings.visualStyleOverrides)
   const script = clips
     .map((c, i) => `Scene ${i + 1}: ${c.title}\nStory: ${c.story || '(none)'}\nNarration (${languageOf(project.language)}): ${c.narration || '(none)'}`)
     .join('\n\n')
   const prompt = [
-    `Visual style of the video (for your framing choices only, do not repeat it in the descriptions): ${getStyle(project.styleId).name}.`,
+    `Visual style of the video: ${style.name}.`,
+    `Drawing constraints for this style (respect them when describing people, outfits and backgrounds; do not repeat them verbatim): ${style.prompt}`,
+    `Character drawing constraints: ${style.characterHint}`,
     `Frame format: ${project.aspectRatio === '9:16' ? 'vertical 9:16' : 'horizontal 16:9'}.`,
     `Idea of the video: ${project.synopsis}`,
     known.length ? `Existing characters (keep them exactly):\n${known.map((c) => `- ${c.name}: ${c.description}`).join('\n')}` : 'There are no existing characters yet.',

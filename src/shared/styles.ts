@@ -1,3 +1,11 @@
+import type { InstructionMode } from './types'
+
+export interface VisualStyleOverride {
+  mode: InstructionMode
+  prompt: string
+  characterHint: string
+}
+
 export type StyleCategory = '2d' | '3d' | 'realistis'
 
 export interface VisualStyle {
@@ -227,6 +235,13 @@ export const VISUAL_STYLES: VisualStyle[] = [
   }
 ]
 
-export function getStyle(id: string): VisualStyle {
-  return VISUAL_STYLES.find((s) => s.id === id) ?? VISUAL_STYLES[0]
+export function getStyle(id: string, overrides?: Record<string, VisualStyleOverride>): VisualStyle {
+  const original = VISUAL_STYLES.find((s) => s.id === id) ?? VISUAL_STYLES[0]
+  const custom = overrides?.[original.id]
+  if (custom?.mode !== 'custom') return original
+  return {
+    ...original,
+    prompt: custom.prompt.trim() || original.prompt,
+    characterHint: custom.characterHint.trim() || original.characterHint
+  }
 }

@@ -96,7 +96,7 @@ function splitAvoid(visual: string): { scene: string; avoid: string } {
  * character can change out of the outfit on their reference sheet (no spacesuit indoors).
  */
 function clipPrompt(project: Project, clip: Clip, chars: Character[], refNames: string[], limit: number): string {
-  const style = getStyle(project.styleId)
+  const style = getStyle(project.styleId, getSettings().visualStyleOverrides)
   const { scene, avoid } = splitAvoid(clip.visualPrompt)
   const wardrobe = /^\s*wardrobe\s*:/im.test(scene)
   const parts = [`Scene:\n${scene}`]
@@ -124,7 +124,7 @@ function clipPrompt(project: Project, clip: Clip, chars: Character[], refNames: 
 }
 
 function sheetPrompt(project: Project, c: Character): string {
-  const style = getStyle(project.styleId)
+  const style = getStyle(project.styleId, getSettings().visualStyleOverrides)
   return [
     style.prompt,
     `Character reference sheet for "${c.name}": ${c.description}. The character is ${style.characterHint}.`,

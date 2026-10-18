@@ -1,3 +1,6 @@
+import type { VisualStyleOverride } from './styles'
+
+export type InstructionMode = 'original' | 'custom'
 export type ProjectStatus = 'draft' | 'script' | 'storyboard' | 'editing' | 'exported'
 export type AspectRatio = '16:9' | '9:16'
 export type TtsProvider = 'gemini' | 'elevenlabs'
@@ -277,6 +280,9 @@ export interface VoiceOption {
 
 export interface AppSettings {
   /** Blank uses the shipped creative instructions. Output schemas remain fixed. */
+  scriptInstructionsMode: InstructionMode
+  visualInstructionsMode: InstructionMode
+  visualStyleOverrides: Record<string, VisualStyleOverride>
   scriptInstructions: string
   visualInstructions: string
   defaultTtsProvider: TtsProvider

@@ -1,3 +1,4 @@
+import type { InstructionMode } from './types'
 import { CLEAN_NARRATION_STYLE } from './speech'
 
 export const INSTRUCTION_LIMIT = 20000
@@ -26,9 +27,9 @@ export function resolveInstructions(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.trim() && value.length <= INSTRUCTION_LIMIT ? value.trim() : fallback
 }
 
-export function scriptSystem(language: string, custom: unknown): string {
+export function scriptSystem(language: string, custom: unknown, mode: InstructionMode = 'custom'): string {
   return [
-    resolveInstructions(custom, DEFAULT_SCRIPT_INSTRUCTIONS),
+    resolveInstructions(mode === 'custom' ? custom : '', DEFAULT_SCRIPT_INSTRUCTIONS),
     'Required output rules (apply even if creative instructions conflict):',
     'Return the supplied JSON schema with a video title and scenes containing title, story and narration. Follow the requested scene count. Each scene has one voice-over line.',
     CLEAN_NARRATION_STYLE,
@@ -37,9 +38,9 @@ export function scriptSystem(language: string, custom: unknown): string {
   ].join('\n\n')
 }
 
-export function visualSystem(custom: unknown): string {
+export function visualSystem(custom: unknown, mode: InstructionMode = 'custom'): string {
   return [
-    resolveInstructions(custom, DEFAULT_VISUAL_INSTRUCTIONS),
+    resolveInstructions(mode === 'custom' ? custom : '', DEFAULT_VISUAL_INSTRUCTIONS),
     'Required output rules (apply even if creative instructions conflict):',
     'The reviewed script is final. Return the supplied JSON schema with world, characters, and only the requested numbered scenes. Design one still image per scene, with camera, strength, motion and transition. Use only the allowed enum values. Do not rewrite the script.',
     'Write "world", "identity", "outfit", "setting", "action", "wardrobe", "framing", "avoid" and "motion" in English.'

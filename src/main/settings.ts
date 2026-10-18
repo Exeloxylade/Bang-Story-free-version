@@ -2,9 +2,13 @@ import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getImageModel, getVideoModel 
 import type { AppSettings } from '@shared/types'
 import { isFlowModel } from '@shared/media'
 import { INSTRUCTION_LIMIT } from '@shared/storyInstructions'
+import { VISUAL_STYLES, type VisualStyleOverride } from '@shared/styles'
 import { getDb } from './db'
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  scriptInstructionsMode: 'original',
+  visualInstructionsMode: 'original',
+  visualStyleOverrides: {},
   scriptInstructions: '',
   visualInstructions: '',
   defaultTtsProvider: 'gemini',
@@ -25,7 +29,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export function getSettings(): AppSettings {
   const rows = getDb().prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[]
-  const out: AppSettings = { ...DEFAULT_SETTINGS, llmModels: { ...DEFAULT_SETTINGS.llmModels } }
+  const out: AppSettings = { ...DEFAULT_SETTINGS, llmModels: { ...DEFAULT_SETTINGS.llmModels }, visualStyleOverrides: {} }
   for (const r of rows) {
     if (!(r.key in out)) continue
     const value = JSON.parse(r.value)
@@ -35,6 +39,18 @@ export function getSettings(): AppSettings {
   for (const key of ['scriptInstructions', 'visualInstructions'] as const) {
     if (typeof out[key] !== 'string' || out[key].length > INSTRUCTION_LIMIT) out[key] = ''
   }
+  for (const [text, mode] of [['scriptInstructions', 'scriptInstructionsMode'], ['visualInstructions', 'visualInstructionsMode']] as const) {
+    // Preserve the behavior of instructions saved before explicit mode switches existed.
+    if (!rows.some(row => row.key === mode)) out[mode] = out[text].trim() ? 'custom' : 'original'
+    else if (out[mode] !== 'original' && out[mode] !== 'custom') out[mode] = 'original'
+  }
+  const overrides: Record<string, VisualStyleOverride> = {}
+  if (out.visualStyleOverrides && typeof out.visualStyleOverrides === 'object') {
+    for (const [id, value] of Object.entries(out.visualStyleOverrides)) {
+      if (validStyleOverride(id, value)) overrides[id] = value
+    }
+  }
+  out.visualStyleOverrides = overrides
   // A provider that no longer exists (e.g. from an older build) falls back to Gemini.
   if (!(out.llmProvider in DEFAULT_SETTINGS.llmModels)) out.llmProvider = 'gemini'
   out.flowImageConcurrency = Number.isInteger(out.flowImageConcurrency) ? Math.max(1, Math.min(8, out.flowImageConcurrency)) : 2
@@ -44,7 +60,18 @@ export function getSettings(): AppSettings {
   return out
 }
 
+function validStyleOverride(id: string, value: unknown): value is VisualStyleOverride {
+  if (!VISUAL_STYLES.some(style => style.id === id) || !value || typeof value !== 'object') return false
+  const entry = value as VisualStyleOverride
+  return ['original', 'custom'].includes(entry.mode) && typeof entry.prompt === 'string' && entry.prompt.length <= INSTRUCTION_LIMIT && typeof entry.characterHint === 'string' && entry.characterHint.length <= INSTRUCTION_LIMIT
+}
+
 export function setSettings(patch: Partial<AppSettings>): AppSettings {
+  for (const key of ['scriptInstructionsMode', 'visualInstructionsMode'] as const) {
+    if (patch[key] !== undefined && !['original', 'custom'].includes(patch[key]!)) throw new Error('Pilih mode Asli atau Kustom.')
+  }
+  if (patch.visualStyleOverrides !== undefined && (!patch.visualStyleOverrides || typeof patch.visualStyleOverrides !== 'object' || Array.isArray(patch.visualStyleOverrides) || Object.entries(patch.visualStyleOverrides).some(([id, value]) => !validStyleOverride(id, value))))
+    throw new Error(`Gaya visual tidak valid. Setiap instruksi maksimal ${INSTRUCTION_LIMIT} karakter.`)
   for (const key of ['scriptInstructions', 'visualInstructions'] as const) {
     if (patch[key] !== undefined && (typeof patch[key] !== 'string' || patch[key]!.length > INSTRUCTION_LIMIT))
       throw new Error(`Instruksi harus berupa teks maksimal ${INSTRUCTION_LIMIT} karakter.`)
@@ -67,7 +94,7 @@ export function setSettings(patch: Partial<AppSettings>): AppSettings {
   getDb().transaction(() => {
     for (const [k, v] of Object.entries(patch)) {
       if (!(k in DEFAULT_SETTINGS)) continue
-      const value = k === 'llmModels' ? { ...current.llmModels, ...(v as object) } : v
+      const value = k === 'llmModels' ? { ...current.llmModels, ...(v as object) } : k === 'visualStyleOverrides' ? { ...current.visualStyleOverrides, ...(v as object) } : v
       stmt.run(k, JSON.stringify(value))
     }
   })()
