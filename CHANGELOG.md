@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Connector 1.1.6 memakai fungsi CAPTCHA yang disimpan Flow saat startup, mengikuti jalur pada repo asli. Setelah update, reload extension lalu refresh tab Flow yang sudah terbuka sekali; tidak perlu pairing ulang. Upload referensi kini menerima action `UPLOAD_IMAGE`. Penerimaan Google tetap memerlukan verifikasi langsung.
 - Penolakan Google `PUBLIC_ERROR_UNUSUAL_ACTIVITY` kini menampilkan alasan yang jelas dan membatalkan pekerjaan Flow yang belum dimulai, sehingga sisa batch tidak terus dikirim setelah penolakan. Ini tidak menghapus pembatasan dari Google.
 - Jumlah gambar Flow paralel dapat diatur 1–8 (bawaan 2). Kegagalan verifikasi membatalkan pekerjaan yang belum mulai, tanpa halaman atau tombol lanjutkan tambahan. Setelah diperbaiki, gunakan Generate seperti biasa. Job yang sedang berjalan tetap menyelesaikan permintaannya.
 - Connector 1.1.5 memakai bootstrap Google `trustedtypes=true` agar skrip CAPTCHA tahap kedua kompatibel dengan Trusted Types, tanpa mengubah kebijakan halaman.

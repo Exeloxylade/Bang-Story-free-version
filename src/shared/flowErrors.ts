@@ -3,6 +3,9 @@ export class FlowSetupError extends Error {}
 /** Only known codes become UI messages; upstream bodies can contain credentials. */
 export function flowFailure(value: unknown): Error {
   const message = typeof value === 'string' ? value : value && typeof value === 'object' && 'message' in value && typeof value.message === 'string' ? value.message : ''
+  if (/\[captcha\/captcha_native_reload_required\]/i.test(message)) {
+    return new FlowSetupError('Integrasi awal tab Flow belum siap (captcha_native_reload_required). Muat ulang extension lalu refresh tab Flow yang sudah terbuka sekali. Pairing tetap tersimpan. Pekerjaan yang belum mulai dibatalkan; jika masih gagal setelah refresh, integrasi halaman ini belum kompatibel.')
+  }
   if (/\bPUBLIC_ERROR_UNUSUAL_ACTIVITY\b/i.test(message)) {
     return new FlowSetupError('Google menolak permintaan Flow karena aktivitas tidak biasa (PUBLIC_ERROR_UNUSUAL_ACTIVITY). Pekerjaan yang belum mulai dibatalkan. Tunggu beberapa menit, nonaktifkan VPN/proxy jika digunakan, lalu periksa Generate langsung di Flow. Menghubungkan ulang akun tidak menjamin masalah ini selesai.')
   }

@@ -103,3 +103,10 @@ test('Google unusual-activity rejection stops the remaining batch and preserves 
   assert.equal(f.rows.get('waiting').status,'canceled');assert.equal(unexpected,0)
   b.resolve();await tick();assert.equal(f.rows.get('b').status,'done')
 })
+
+
+test('a Flow tab loaded before the startup integration gets a precise safe reload instruction', () => {
+  const error=flowFailure('private-details [captcha/captcha_native_reload_required]')
+  assert.ok(error instanceof FlowSetupError);assert.match(error.message,/captcha_native_reload_required/)
+  assert.match(error.message,/Pairing tetap tersimpan/);assert.doesNotMatch(error.message,/private-details/)
+})
