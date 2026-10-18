@@ -66,6 +66,7 @@ const api: StudioApi = {
     list: call('models:list')
   },
   exporter: {
+    capabilities: call('export:capabilities'),
     start: call('export:start'),
     defaultFolder: call('export:defaultFolder'),
     pickFolder: call('export:pickFolder'),

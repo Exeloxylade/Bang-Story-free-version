@@ -15,7 +15,7 @@ import type {
   VoiceOption,
   WordTiming
 } from '@shared/types'
-import { startExport } from './exporter'
+import { exportCapabilities, startExport } from './exporter'
 import {
   estimateCredits,
   forgetEstimates,
@@ -241,6 +241,7 @@ export function registerIpc(): void {
     return eleven.listVoices()
   })
 
+  handle('export:capabilities', () => exportCapabilities())
   handle('export:start', (projectId: string, opts: ExportOptions) => startExport(projectId, opts))
   handle('export:defaultFolder', () => defaultExportFolder())
   handle('export:pickFolder', async () => {

@@ -9,6 +9,9 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Template narasi Gemini memakai jeda hening tanpa napas, desahan, atau bisikan; tag efek vokal dari naskah lama dibersihkan saat membuat audio baru.
+- Ekspor dapat memilih CPU, AMD AMF, NVIDIA NVENC, Intel Quick Sync, atau otomatis. Mode Ringan, Seimbang, dan Maksimal mengatur anggaran thread dan jumlah klip yang dirender bersamaan. GPU diuji dengan encoding singkat dan ada fallback CPU untuk kegagalan inisialisasi.
+- Flow2API menyertakan fallback upstream untuk penolakan video `code=[5]` pada model relaxed: coba sekali model standar dengan durasi dan frame masukan yang sama. Tidak mengulang penolakan aktivitas tidak biasa atau pengiriman dengan hasil tidak pasti.
 - Connector 1.1.6 memakai fungsi CAPTCHA yang disimpan Flow saat startup, mengikuti jalur pada repo asli. Setelah update, reload extension lalu refresh tab Flow yang sudah terbuka sekali; tidak perlu pairing ulang. Upload referensi kini menerima action `UPLOAD_IMAGE`. Penerimaan Google tetap memerlukan verifikasi langsung.
 - Penolakan Google `PUBLIC_ERROR_UNUSUAL_ACTIVITY` kini menampilkan alasan yang jelas dan membatalkan pekerjaan Flow yang belum dimulai, sehingga sisa batch tidak terus dikirim setelah penolakan. Ini tidak menghapus pembatasan dari Google.
 - Jumlah gambar Flow paralel dapat diatur 1–8 (bawaan 2). Kegagalan verifikasi membatalkan pekerjaan yang belum mulai, tanpa halaman atau tombol lanjutkan tambahan. Setelah diperbaiki, gunakan Generate seperti biasa. Job yang sedang berjalan tetap menyelesaikan permintaannya.

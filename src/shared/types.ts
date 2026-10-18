@@ -355,7 +355,16 @@ export interface ModelList {
   fetchedAt: number
 }
 
+export type ExportEncoder = 'auto' | 'cpu' | 'amd' | 'nvidia' | 'intel'
+export type ExportResources = 'responsive' | 'balanced' | 'maximum'
+export interface ExportCapabilities {
+  encoders: { id: Exclude<ExportEncoder, 'auto'>; label: string; available: boolean }[]
+  logicalCores: number
+}
+
 export interface ExportOptions {
+  encoder?: ExportEncoder
+  resources?: ExportResources
   fileName: string
   resolution: 720 | 1080 | 2160
   fps: 30 | 60

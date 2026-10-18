@@ -90,3 +90,7 @@ ditambahkan hanya untuk `https://www.youtube.com/embed/*`.
 Kedua formulir dulu menulis baris `gemini` yang sama, sehingga mengganti kunci narator juga mengganti kunci
 penyusun cerita. TTS kini memakai `gemini-tts` untuk kunci, status tes, model, dan suara. Migrasi menyalin
 blob terenkripsi lama sekali tanpa membuka kuncinya; setelah itu tidak ada fallback ke kunci LLM.
+
+### Narasi bersih dan anggaran render
+Instruksi narasi bersih dibagi oleh prompt naskah dan metadata gaya Gemini, bukan disisipkan sebagai teks yang dibacakan. Tag jeda tetap dipertahankan untuk pemotongan antar-adegan; audio lama perlu dibuat ulang.
+Encoder GPU diuji dengan encode nyata, bukan hanya daftar encoder FFmpeg. Filter kamera/transisi/caption tetap sama dan memakai CPU. Anggaran thread dibagi antar-worker segmen, dengan batas RAM lebih ketat untuk 4K. Kegagalan inisialisasi GPU boleh mencoba CPU; kesalahan filter tidak disembunyikan.

@@ -1,3 +1,4 @@
+import { CLEAN_NARRATION_STYLE, cleanNarrationText } from '@shared/speech'
 import { GoogleGenAI } from '@google/genai'
 import { GEMINI_LIBRARY_VOICES, GEMINI_VOICES, geminiVoiceName, geminiVoiceTone } from '@shared/models'
 import type { KeyTestResult, ModelOption, VoiceOption } from '@shared/types'
@@ -101,7 +102,7 @@ export async function speak(text: string, voice: string, languageCode: string, s
       contents: [
         {
           role: 'user',
-          parts: [{ text, speechMetadata: { style: 'natural storytelling narrator, clear and engaging, steady pace' } }]
+          parts: [{ text: cleanNarrationText(text), speechMetadata: { style: CLEAN_NARRATION_STYLE } }]
         }
       ],
       config: {

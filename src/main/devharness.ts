@@ -10,7 +10,7 @@ import { assetAbsPath, binPath } from './paths'
 import { probeDurationMs } from './services/audio'
 import { createProject, getBundle, insertAsset, patchClip, replaceStory, saveSnapshot, touchProject } from './repo'
 import { recordCheck, setSecret } from './secrets'
-import type { ApiProvider } from '@shared/types'
+import type { ApiProvider, ExportOptions } from '@shared/types'
 
 /**
  * Real speech for the demo clips (Windows' built-in English voice) with estimated caption timings, so
@@ -197,6 +197,9 @@ export function attachDevHarness(win: BrowserWindow): void {
   let plan: {
     main?: 'seed' | 'export' | 'key' | 'overlays' | 'speech' | 'videos'
     exportTo?: string
+    encoder?: ExportOptions['encoder']
+    resources?: ExportOptions['resources']
+    resolution?: ExportOptions['resolution']
     /** For main "export": an existing project instead of the seeded demo. */
     projectId?: string
     /** For main "key": store a fake key for this provider and mark its last check as passed or failed. */
@@ -236,7 +239,9 @@ export function attachDevHarness(win: BrowserWindow): void {
         if (step.main === 'export' && (step.projectId ?? demoId)) {
           startExport((step.projectId ?? demoId)!, {
             fileName: 'demo-export',
-            resolution: 1080,
+            resolution: step.resolution ?? 1080,
+            encoder: step.encoder,
+            resources: step.resources,
             fps: 30,
             burnCaptions: true,
             writeSrt: true,

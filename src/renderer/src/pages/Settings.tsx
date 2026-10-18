@@ -479,6 +479,7 @@ function TtsSection({ settings, statusOf, onChanged, onSettings }: { settings: A
         sub="Penyedia suara bawaan untuk proyek baru. Setiap proyek tetap bisa memilih sendiri di langkah Ide cerita."
       />
       <ProviderSelect value={provider} options={options} onChange={async (id) => onSettings(await window.api.settings.set({ defaultTtsProvider: id }))} />
+      {provider === 'gemini' && <p className="text-sm text-ink-2">Template narasi bersih aktif: jeda hening, tanpa napas, desahan, atau bisikan. Buat ulang narasi untuk menerapkannya ke audio lama.</p>}
       <Card key={provider}>
         <KeyForm
           provider={keyProvider}

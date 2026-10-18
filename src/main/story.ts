@@ -1,6 +1,7 @@
 import { CAMERA_PRESETS, MOTION_STRENGTHS, TRANSITIONS } from '@shared/motion'
 import { LANGUAGES, clipCountFor } from '@shared/models'
 import { estimateNarrationMs, needsVisual } from '@shared/script'
+import { CLEAN_NARRATION_STYLE } from '@shared/speech'
 import { getStyle } from '@shared/styles'
 import type { CameraPresetId, Clip, MotionStrength, MusicPrompt, ProjectBundle, TransitionId } from '@shared/types'
 import { applyVisuals, charactersOf, clipsOf, getBundle, getProject, replaceScript, type SceneVisual } from './repo'
@@ -38,7 +39,7 @@ const SCRIPT_SCHEMA = {
           narration: {
             type: 'string',
             description:
-              'Voice-over for this scene in the target language, 10 to 18 spoken words, natural spoken rhythm. May contain one or two English vocal tags in angle brackets.'
+              'Voice-over for this scene in the target language, 10 to 18 spoken words, natural spoken rhythm. Use only silent pause tags when needed; never add breathing, sighing, gasping or whispering tags.'
           }
         },
         required: ['title', 'story', 'narration']
@@ -65,7 +66,8 @@ export async function generateScript(projectId: string): Promise<ProjectBundle> 
     'You turn an idea into a sequence of short scenes. Each scene has one line of voice-over.',
     'The first scene is a strong hook. The story has a clear beginning, rising tension and a satisfying ending. The last scene can invite viewers to subscribe.',
     'Keep facts accurate for history and science topics, and always call each character by the same name.',
-    'The narration is voiced by an expressive text-to-speech model. Where it helps the delivery, add a few English vocal tags in angle brackets inside the narration, such as <short pause>, <long pause>, <chuckles>, <sigh>, <gasp> or <whispers>. Use them sparingly, at most one or two per scene, and never other markup.',
+    CLEAN_NARRATION_STYLE,
+    'Only <short pause> and <long pause> vocal tags are allowed. Use them sparingly. Pauses must be silent.',
     `Write everything in ${lang}, except the vocal tags, which stay in English.`
   ].join(' ')
   const prompt = [

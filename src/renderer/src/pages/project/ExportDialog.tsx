@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Download, FolderOpen, RotateCcw } from 'lucide-react'
-import type { ExportOptions, Job } from '@shared/types'
+import type { ExportCapabilities, ExportEncoder, ExportOptions, Job } from '@shared/types'
 import { Button, Modal, Progress, Switch, cx, inputCls } from '../../components/ui'
+import { Select } from '../../components/Select'
 import { clipNumber, errorText, mmss } from '../../lib/format'
 import { useApp } from '../../store/app'
 import { isRunning, useProject } from '../../store/project'
@@ -27,16 +28,20 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { project, clips, jobs, flush } = useProject()
   const { toast } = useApp()
   const [opts, setOpts] = useState<ExportOptions | null>(null)
+  const [capabilities, setCapabilities] = useState<ExportCapabilities | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || !project) return
+    void window.api.exporter.capabilities().then(setCapabilities).catch(() => setCapabilities(null))
     // A finished or failed export is not shown again; an export still running keeps its progress.
     setJobId((id) => (id && isRunning(useProject.getState().jobs[id]) ? id : null))
     void window.api.exporter.defaultFolder().then((folder) =>
       setOpts({
         fileName: slug(project.title),
         resolution: 1080,
+        encoder: 'auto',
+        resources: 'balanced',
         fps: 30,
         burnCaptions: project.editor.captionStyle !== 'none',
         writeSrt: false,
@@ -176,6 +181,19 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               </div>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold">Encoder video</span>
+              <Select<ExportEncoder> label="Encoder video" value={opts.encoder ?? 'auto'} disabled={running} onChange={encoder => set({ encoder })}
+                options={[{ value: 'auto', label: 'Otomatis (GPU jika tersedia)' }, ...(capabilities?.encoders ?? [{ id: 'cpu' as const, label: 'CPU (x264)', available: true }]).map(e => ({ value: e.id, label: e.label, disabled: !e.available, note: e.available ? undefined : 'Tidak tersedia di komputer ini' }))]} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold">Pemakaian sumber daya</span>
+              <Select<NonNullable<ExportOptions['resources']>> label="Pemakaian sumber daya" value={opts.resources ?? 'balanced'} disabled={running} onChange={resources => set({ resources })}
+                options={[{ value: 'responsive', label: 'Ringan (25% thread CPU)' }, { value: 'balanced', label: 'Seimbang (50% thread CPU)' }, { value: 'maximum', label: 'Maksimal (semua thread CPU)' }]} />
+            </div>
+          </div>
+          <p className="text-xs text-ink-2">{capabilities ? `${capabilities.logicalCores} thread CPU terdeteksi.` : 'Memeriksa encoder GPU…'} GPU mempercepat encoding; gerak kamera, transisi, dan caption tetap memakai CPU. Mode maksimal dapat membuat komputer lebih sibuk. Jika GPU gagal diinisialisasi, ekspor beralih ke CPU.</p>
           <div className="flex flex-col rounded-[14px] border border-line">
             {toggles.map((t, i) => (
               <div key={t.key} className={cx('flex items-center gap-3.5 px-3.5 py-2.5', i > 0 && 'border-t border-line', t.disabled && 'opacity-60')}>

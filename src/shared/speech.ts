@@ -40,3 +40,14 @@ export function toElevenLabsText(text: string, model: string): string {
 export function isTagToken(word: string): boolean {
   return /[<>[\]=]|^\/$/.test(word)
 }
+
+/** Reused by script planning and TTS delivery metadata, never spoken as transcript. */
+export const CLEAN_NARRATION_STYLE = 'Clear, engaging storytelling narrator at a steady pace. Use silent pauses, including after long pauses and between scenes. No audible breathing, sighs, gasps, whispering, chuckles, laughter, or other non-speech vocal sounds. Keep the same clear speaking voice throughout.'
+
+/** Older scripts can contain performance tags. Keep their words and pause boundaries. */
+export function cleanNarrationText(text: string): string {
+  return text.replace(/<([^<>]{1,40})>|\[([^\[\]]{1,40})\]/g, (tag, angle: string, square: string) => {
+    const effect = (angle ?? square).trim()
+    return /\b(breath(?:s|ing)?|breathe|inhale|exhale|sigh(?:s|ing)?|gasp(?:s|ing)?|whisper(?:s|ing)?|chuckle(?:s|ing)?|laugh(?:s|ing|ter)?)\b/i.test(effect) ? '' : tag
+  })
+}

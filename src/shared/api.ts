@@ -10,6 +10,7 @@ import type {
   FlowSetupStatus,
   WordTiming,
   ExportOptions,
+  ExportCapabilities,
   Job,
   KeyStatus,
   KeyTestResult,
@@ -91,6 +92,7 @@ export interface StudioApi {
     list(source: ModelSource, refresh?: boolean): Promise<ModelList>
   }
   exporter: {
+    capabilities(): Promise<ExportCapabilities>
     start(projectId: string, options: ExportOptions): Promise<Job>
     defaultFolder(): Promise<string>
     pickFolder(): Promise<string | null>

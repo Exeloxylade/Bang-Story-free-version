@@ -1,3 +1,4 @@
+import { encodingArgs, getExportCapabilities, hardwareFailure, renderPlan, type RenderPlan } from './exportEncoding'
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -32,6 +33,8 @@ function ffmpegPath(): string {
   return binPath(ffmpegStatic)
 }
 
+export function exportCapabilities() { return getExportCapabilities(ffmpegPath()) }
+
 function outputSize(aspect: '16:9' | '9:16', res: ExportOptions['resolution']): { w: number; h: number } {
   const long = res === 720 ? 1280 : res === 1080 ? 1920 : 3840
   const short = res
@@ -39,9 +42,10 @@ function outputSize(aspect: '16:9' | '9:16', res: ExportOptions['resolution']): 
 }
 
 /** Runs ffmpeg in `cwd`, reporting progress from its `time=` output against `totalSec`. */
-function runFfmpeg(args: string[], cwd: string, signal: AbortSignal, totalSec?: number, onProgress?: (f: number) => void): Promise<void> {
+function runFfmpeg(args: string[], cwd: string, signal: AbortSignal, totalSec?: number, onProgress?: (f: number) => void, threads = 2): Promise<void> {
   return new Promise((resolve, reject) => {
-    const p = spawn(ffmpegPath(), ['-hide_banner', '-y', ...args], { cwd, windowsHide: true })
+    if (signal.aborted) return reject(new Error('Dibatalkan'))
+    const p = spawn(ffmpegPath(), ['-hide_banner', '-y', '-threads', String(threads), '-filter_threads', String(threads), '-filter_complex_threads', String(threads), ...args], { cwd, windowsHide: true })
     let tail = ''
     const onAbort = (): void => {
       p.kill('SIGKILL')
@@ -334,21 +338,22 @@ async function renderSegment(
   opts: ExportOptions,
   size: { w: number; h: number },
   tmp: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  plan: RenderPlan
 ): Promise<string> {
   const { clip } = seg
   const out = `seg_${String(index).padStart(3, '0')}.mp4`
   const len = seg.own + seg.overlap + seg.pad
   const frames = Math.max(1, Math.round(len * opts.fps))
   const video = clip.motionType === 'video' ? assetOf(bundle, clip.videoAssetId) : undefined
-  const enc = ['-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(opts.fps)]
+  const enc = ['-an', ...encodingArgs(plan.encoder, true), '-threads', String(Math.max(1, Math.floor(plan.threads / plan.workers))), '-pix_fmt', 'yuv420p', '-r', String(opts.fps)]
   if (video) {
     const cam = cameraPerspective(clip.videoCamera, clip.videoStrength, Math.max(2, Math.round(seg.own * opts.fps)), opts.fps)
     const work = cam ? workSize(video.width, video.height, size) : size
     const vf = cameraChain(cam, work, size, [`fps=${opts.fps}`, `tpad=stop_mode=clone:stop_duration=${len.toFixed(3)}`])
     // A video trimmed on the timeline starts that far into its file.
     const from = clip.mediaInMs > 0 ? ['-ss', (clip.mediaInMs / 1000).toFixed(3)] : []
-    await runFfmpeg([...from, '-i', assetAbsPath(bundle.project.id, video.localPath), '-vf', vf, '-t', len.toFixed(3), ...enc, out], tmp, signal)
+    await runFfmpeg([...from, '-i', assetAbsPath(bundle.project.id, video.localPath), '-vf', vf, '-t', len.toFixed(3), ...enc, out], tmp, signal, undefined, undefined, Math.max(1, Math.floor(plan.threads / plan.workers)))
     return out
   }
   const image = assetOf(bundle, clip.imageAssetId)
@@ -374,12 +379,14 @@ async function renderSegment(
       out
     ],
     tmp,
-    signal
+    signal, undefined, undefined, Math.max(1, Math.floor(plan.threads / plan.workers))
   )
   return out
 }
 
 async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOptions): Promise<string> {
+  const plan = renderPlan(opts, await exportCapabilities())
+  if (opts.encoder && opts.encoder !== 'auto' && opts.encoder !== plan.encoder) ctx.progress(0.01, 'GPU tidak tersedia; memakai CPU')
   const bundle = getBundle(projectId)
   if (!bundle.clips.length) throw new Error('Proyek belum punya klip')
   const size = outputSize(bundle.project.aspectRatio, opts.resolution)
@@ -389,19 +396,30 @@ async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOption
     const segs = planSegments(bundle.clips, opts.fps)
     const total = segs.reduce((n, s) => n + s.own, 0)
 
-    // 1. one silent video segment per clip, two at a time
+    // 1. Render with a bounded worker and thread budget.
     const files: string[] = new Array(segs.length)
     let done = 0
     let next = 0
+    let segmentError: unknown
     const worker = async (): Promise<void> => {
-      while (next < segs.length) {
+      while (next < segs.length && !segmentError) {
         const i = next++
-        files[i] = await renderSegment(bundle, segs[i], i, opts, size, tmp, ctx.signal)
+        try {
+          files[i] = await renderSegment(bundle, segs[i], i, opts, size, tmp, ctx.signal, plan)
+        } catch (error) {
+          if (ctx.signal.aborted || !hardwareFailure(error)) { segmentError = error; throw error }
+          plan.encoder = 'cpu'
+          ctx.progress(0.03, 'GPU tidak tersedia; melanjutkan dengan CPU')
+          try { files[i] = await renderSegment(bundle, segs[i], i, opts, size, tmp, ctx.signal, plan) }
+          catch (fallbackError) { segmentError = fallbackError; throw fallbackError }
+        }
         done++
         ctx.progress(0.03 + 0.6 * (done / segs.length), `Merender klip ${done} dari ${segs.length}`)
       }
     }
-    await Promise.all([worker(), worker()])
+    const results = await Promise.allSettled(Array.from({ length: plan.workers }, () => worker()))
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failed) throw failed.reason
 
     // 2. captions
     const style = resolveCaption(bundle.project.editor)
@@ -524,7 +542,7 @@ async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOption
     for (let n = 2; existsSync(outPath); n++) outPath = join(folder, `${base}-${n}.mp4`)
 
     ctx.progress(0.64, 'Menggabungkan klip, suara, dan caption')
-    await runFfmpeg(
+    const encodeFinal = () => runFfmpeg(
       [
         ...args,
         '-filter_complex_script',
@@ -533,12 +551,8 @@ async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOption
         '[vout]',
         '-map',
         '[aout]',
-        '-c:v',
-        'libx264',
-        '-preset',
-        'medium',
-        '-crf',
-        opts.resolution === 2160 ? '20' : '19',
+        ...encodingArgs(plan.encoder, false, opts.resolution === 2160 ? 20 : 19),
+        '-threads', String(plan.threads),
         '-r',
         String(opts.fps),
         '-c:a',
@@ -556,8 +570,15 @@ async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOption
       tmp,
       ctx.signal,
       total,
-      (f) => ctx.progress(0.64 + 0.34 * f, 'Menggabungkan klip, suara, dan caption')
+      (f) => ctx.progress(0.64 + 0.34 * f, 'Menggabungkan klip, suara, dan caption'),
+      plan.threads
     )
+    try { await encodeFinal() } catch (error) {
+      if (ctx.signal.aborted || plan.encoder === 'cpu' || !hardwareFailure(error)) throw error
+      plan.encoder = 'cpu'
+      ctx.progress(0.64, 'GPU tidak tersedia; menyelesaikan ekspor dengan CPU')
+      await encodeFinal()
+    }
     if (opts.writeSrt && chunks.length) writeFileSync(outPath.replace(/\.mp4$/i, '.srt'), buildSrt(chunks), 'utf8')
     return outPath
   } finally {
