@@ -1,9 +1,12 @@
 import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getImageModel, getVideoModel } from '@shared/higgsfield'
 import type { AppSettings } from '@shared/types'
 import { isFlowModel } from '@shared/media'
+import { INSTRUCTION_LIMIT } from '@shared/storyInstructions'
 import { getDb } from './db'
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  scriptInstructions: '',
+  visualInstructions: '',
   defaultTtsProvider: 'gemini',
   defaultLanguage: 'id',
   exportFolder: null,
@@ -29,6 +32,9 @@ export function getSettings(): AppSettings {
     if (r.key === 'llmModels') out.llmModels = { ...out.llmModels, ...value }
     else (out as unknown as Record<string, unknown>)[r.key] = value
   }
+  for (const key of ['scriptInstructions', 'visualInstructions'] as const) {
+    if (typeof out[key] !== 'string' || out[key].length > INSTRUCTION_LIMIT) out[key] = ''
+  }
   // A provider that no longer exists (e.g. from an older build) falls back to Gemini.
   if (!(out.llmProvider in DEFAULT_SETTINGS.llmModels)) out.llmProvider = 'gemini'
   out.flowImageConcurrency = Number.isInteger(out.flowImageConcurrency) ? Math.max(1, Math.min(8, out.flowImageConcurrency)) : 2
@@ -39,6 +45,10 @@ export function getSettings(): AppSettings {
 }
 
 export function setSettings(patch: Partial<AppSettings>): AppSettings {
+  for (const key of ['scriptInstructions', 'visualInstructions'] as const) {
+    if (patch[key] !== undefined && (typeof patch[key] !== 'string' || patch[key]!.length > INSTRUCTION_LIMIT))
+      throw new Error(`Instruksi harus berupa teks maksimal ${INSTRUCTION_LIMIT} karakter.`)
+  }
   if (patch.flowImageConcurrency !== undefined && (!Number.isInteger(patch.flowImageConcurrency) || patch.flowImageConcurrency < 1 || patch.flowImageConcurrency > 8))
     throw new Error('Jumlah gambar Flow paralel harus berupa angka bulat dari 1 sampai 8.')
   if (patch.flowBaseUrl !== undefined) {

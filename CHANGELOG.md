@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Pengaturan lanjutan untuk mengedit instruksi kreatif naskah/hook dan storyboard/karakter, dengan simpan terpisah serta pulihkan bawaan. Berlaku untuk generasi berikutnya di semua proyek; format keluaran, konteks proyek, dan narasi dengan jeda hening tetap disertakan.
 - Template narasi Gemini memakai jeda hening tanpa napas, desahan, atau bisikan; tag efek vokal dari naskah lama dibersihkan saat membuat audio baru.
 - Ekspor dapat memilih CPU, AMD AMF, NVIDIA NVENC, Intel Quick Sync, atau otomatis. Mode Ringan, Seimbang, dan Maksimal mengatur anggaran thread dan jumlah klip yang dirender bersamaan. GPU diuji dengan encoding singkat dan ada fallback CPU untuk kegagalan inisialisasi.
 - Flow2API menyertakan fallback upstream untuk penolakan video `code=[5]` pada model relaxed: coba sekali model standar dengan durasi dan frame masukan yang sama. Tidak mengulang penolakan aktivitas tidak biasa atau pengiriman dengan hasil tidak pasti.

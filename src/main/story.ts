@@ -1,11 +1,12 @@
 import { CAMERA_PRESETS, MOTION_STRENGTHS, TRANSITIONS } from '@shared/motion'
 import { LANGUAGES, clipCountFor } from '@shared/models'
 import { estimateNarrationMs, needsVisual } from '@shared/script'
-import { CLEAN_NARRATION_STYLE } from '@shared/speech'
+import { scriptSystem, visualSystem } from '@shared/storyInstructions'
 import { getStyle } from '@shared/styles'
 import type { CameraPresetId, Clip, MotionStrength, MusicPrompt, ProjectBundle, TransitionId } from '@shared/types'
 import { applyVisuals, charactersOf, clipsOf, getBundle, getProject, replaceScript, type SceneVisual } from './repo'
 import { generateJson } from './services/llm'
+import { getSettings } from './settings'
 
 const CAMERA_IDS = CAMERA_PRESETS.map((c) => c.id)
 const STRENGTH_IDS = MOTION_STRENGTHS.map((m) => m.id)
@@ -61,15 +62,7 @@ export async function generateScript(projectId: string): Promise<ProjectBundle> 
   const lang = languageOf(project.language)
   const count = clipCountFor(project.durationSec)
 
-  const system = [
-    'You are a scriptwriter for faceless YouTube storytelling and explainer videos.',
-    'You turn an idea into a sequence of short scenes. Each scene has one line of voice-over.',
-    'The first scene is a strong hook. The story has a clear beginning, rising tension and a satisfying ending. The last scene can invite viewers to subscribe.',
-    'Keep facts accurate for history and science topics, and always call each character by the same name.',
-    CLEAN_NARRATION_STYLE,
-    'Only <short pause> and <long pause> vocal tags are allowed. Use them sparingly. Pauses must be silent.',
-    `Write everything in ${lang}, except the vocal tags, which stay in English.`
-  ].join(' ')
+  const system = scriptSystem(lang, getSettings().scriptInstructions)
   const prompt = [
     `Idea / synopsis:\n${project.synopsis}`,
     `Target video length: about ${project.durationSec} seconds.`,
@@ -257,18 +250,7 @@ export async function generateVisuals(projectId: string, mode: 'missing' | 'all'
   if (!targets.length) return getBundle(projectId)
 
   const known = charactersOf(projectId)
-  const system = [
-    'You are the storyboard artist for a faceless YouTube video. The script is final; you design the pictures.',
-    'For each requested scene you describe ONE still image, choose the camera move and its strength over that image, the transition into the next scene, and write how the image would move if it is animated as an AI video.',
-    'Rules for the image descriptions, which go to a text-to-image model that never sees the script:',
-    '1. Every scene is self-contained. Always name the world (planet or country, era, technology) in the setting, even when the story makes it obvious, and add background details that prove it. Without this the model falls back to present-day Earth.',
-    '2. Turn narration into a literal, showable moment. When the narration is a general statement ("after generations, children grow taller"), invent one concrete situation that shows it with visible evidence (a height chart, a comparison with an adult, an old photo), never a symbol or a vague mood.',
-    '3. Describe people plainly as humans. Do not use words an image model may read literally or as fantasy, such as Martian, alien, native, creature, mutant, hybrid or "-born", unless they really are not human; describe the difference concretely instead ("a human teenager, about 2.1 m tall, very slender, long limbs, normal human face").',
-    '4. Clothing must suit the place and action: no spacesuits or helmets inside a pressurized room, a spacesuit outside on an airless surface, period clothing for history. A recurring character keeps their default outfit (source "reference") unless the scene needs something else; then use "custom" and describe the new outfit in full. Describe the clothing of every extra too.',
-    '5. Keep every recurring character visually consistent: reuse the existing characters exactly as given (same name, identity and outfit) and only add characters that are missing. Characters are only people who appear in several scenes; one-off people are extras described inside the scene.',
-    '6. No readable text, signs, captions or labels in the image. Vary shot sizes, angles and camera moves across scenes so the video never feels repetitive.',
-    'Write "world", "identity", "outfit", "setting", "action", "wardrobe", "framing", "avoid" and "motion" in English.'
-  ].join('\n')
+  const system = visualSystem(getSettings().visualInstructions)
   const script = clips
     .map((c, i) => `Scene ${i + 1}: ${c.title}\nStory: ${c.story || '(none)'}\nNarration (${languageOf(project.language)}): ${c.narration || '(none)'}`)
     .join('\n\n')

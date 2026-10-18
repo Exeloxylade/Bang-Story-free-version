@@ -276,6 +276,9 @@ export interface VoiceOption {
 }
 
 export interface AppSettings {
+  /** Blank uses the shipped creative instructions. Output schemas remain fixed. */
+  scriptInstructions: string
+  visualInstructions: string
   defaultTtsProvider: TtsProvider
   defaultLanguage: string
   exportFolder: string | null

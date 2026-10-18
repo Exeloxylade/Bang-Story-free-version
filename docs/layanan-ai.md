@@ -113,3 +113,8 @@ autoplay, supaya putaran dari pengguna terhitung sebagai view.
 
 `app:openExternal` hanya menerima URL `https://` dan membukanya di browser bawaan. Pakai ini untuk semua tautan
 ke luar (dokumentasi penyedia, channel YouTube, Suno, dan lainnya).
+
+## Instruksi kreatif kustom
+Buka **Pengaturan → Pengaturan lanjutan**. Editor **Naskah dan hook** mengatur pembukaan, alur, dan gaya penuturan; editor **Storyboard dan karakter** mengatur adegan, framing, kesinambungan, dan deskripsi karakter. Masing-masing menampilkan instruksi bawaan yang dapat diedit, disimpan, dan dipulihkan.
+Instruksi yang disimpan menggantikan arahan kreatif bawaan di semua proyek pada komputer ini, mulai generasi berikutnya. Naskah dan media lama tidak ditulis ulang. Kosongkan editor lalu simpan, atau pilih Pulihkan bawaan, untuk memakai default lagi.
+Nilai disimpan melalui tabel settings yang sudah ada (`scriptInstructions`, `visualInstructions`); tidak membutuhkan migrasi proyek. Default dan penyusunan prompt ada di `src/shared/storyInstructions.ts`, dipakai oleh UI dan `src/main/story.ts`. JSON schema dan konteks proyek tetap dikelola aplikasi. Uji kontrak dengan `npm run test:story`.

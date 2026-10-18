@@ -23,6 +23,7 @@ import { Logo } from '../components/Logo'
 import { ModelPicker } from '../components/ModelPicker'
 import { ProviderLogo, type ProviderLogoId } from '../components/ProviderLogo'
 import { Select } from '../components/Select'
+import { AdvancedSettings } from './AdvancedSettings'
 import { AboutSection } from './AboutSection'
 import { WhisperSection } from './WhisperSection'
 import { FlowSetupSection } from './FlowSetupSection'
@@ -33,7 +34,7 @@ import { errorText, relativeTime } from '../lib/format'
 import { useModels } from '../lib/useModels'
 import { useApp } from '../store/app'
 
-type Tab = 'services' | 'general' | 'about'
+type Tab = 'services' | 'general' | 'advanced' | 'about'
 
 interface ProviderOption<T extends string> {
   id: T
@@ -613,6 +614,7 @@ export function Settings() {
   const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'services', label: 'Layanan AI dan kunci', icon: <KeyRound className="size-[18px]" /> },
     { id: 'general', label: 'Umum', icon: <SlidersHorizontal className="size-[18px]" /> },
+    { id: 'advanced', label: 'Pengaturan lanjutan', icon: <SlidersHorizontal className="size-[18px]" /> },
     { id: 'about', label: 'Tentang aplikasi', icon: <Info className="size-[18px]" /> }
   ]
 
@@ -703,6 +705,9 @@ export function Settings() {
               </>
             )}
 
+            {settings && <div className={tab === 'advanced' ? 'flex min-w-0 flex-col gap-3.5' : 'hidden'}>
+              <AdvancedSettings settings={settings} onSettings={setSettings} />
+            </div>}
             {tab === 'about' && <AboutSection />}
           </div>
         </main>
