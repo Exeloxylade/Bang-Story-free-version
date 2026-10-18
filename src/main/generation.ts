@@ -467,7 +467,7 @@ export async function setActiveAsset(clipId: string, assetId: string): Promise<v
       : asset.kind === 'video'
         ? { videoAssetId: asset.id, mediaInMs: 0 }
         : asset.kind === 'audio'
-          ? { audioAssetId: asset.id, durationMs: Math.max(1500, (asset.durationMs ?? 0) + 400), voiceInMs: 0, voiceOutMs: null, voiceStartMs: 0 }
+          ? { audioAssetId: asset.id, durationMs: typeof asset.meta.take === 'string' && asset.durationMs != null ? Math.max(1, asset.durationMs) : Math.max(1500, (asset.durationMs ?? 0) + 400), voiceInMs: 0, voiceOutMs: null, voiceStartMs: 0 }
           : {}
   patchClip(clipId, patch)
   emit.clip({ clipId, patch })

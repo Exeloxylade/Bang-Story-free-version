@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Narasi mengalir antar adegan: tidak menyisipkan long pause/paragraf otomatis, tetap mempertahankan jeda yang ditulis pengguna dan larangan napas/desahan. Potongan pendek mengikuti durasi audio asli; pemilihan ulang audio satu take tidak menambah ekor 400 ms. Berlaku saat membuat narasi baru; rekaman lama tetap tersimpan.
 - Connector 1.1.8 mempertahankan selector akun dari URL atau RPC asli pada sesi halaman yang sama, dan membedakan kegagalan jaringan/HTTP. Verifikasi kredit akun paired memakai satu permintaan; pairing yang tersimpan tidak dihapus ketika pengecekan gagal. Bang Story menghapus kode yang sudah dipakai dan menampilkan alasan gagal kredit tanpa menunggu berulang.
 - Pembacaan video Flow mendukung state numerik pada record baru dan signed URL tanpa `/video/`. Poster dipisahkan dari video; state selesai yang belum punya URL tetap dipolling sampai hasil siap. Tes mencakup pengiriman hasil ke unduhan Bang Story.
 - Connector 1.1.7 memperbaiki izin route lookup hasil video dan memilih ulang tab akun yang responsif pada setiap permintaan. Timeout tidak mengulang submit otomatis; kegagalan verifikasi tab ditampilkan jelas dan menghentikan antrean yang belum mulai. Reload extension dan refresh studio Flow setelah update; pairing tetap tersimpan.

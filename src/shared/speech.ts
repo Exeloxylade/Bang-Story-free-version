@@ -16,6 +16,11 @@ export function spokenWords(text: string): string[] {
   return stripVoiceTags(text).split(/\s+/).filter(Boolean)
 }
 
+/** A visual scene boundary is not a paragraph or a request for silence. */
+export function joinNarrationScenes(lines: readonly string[]): string {
+  return lines.map((line) => line.trim()).filter(Boolean).join(' ')
+}
+
 /** Extra seconds the pause tags add to a line. */
 export function tagPauseSec(text: string): number {
   const short = (text.match(/<short pause>/gi) ?? []).length
@@ -42,7 +47,7 @@ export function isTagToken(word: string): boolean {
 }
 
 /** Reused by script planning and TTS delivery metadata, never spoken as transcript. */
-export const CLEAN_NARRATION_STYLE = 'Clear, engaging storytelling narrator at a steady pace. Use silent pauses, including after long pauses and between scenes. No audible breathing, sighs, gasps, whispering, chuckles, laughter, or other non-speech vocal sounds. Keep the same clear speaking voice throughout.'
+export const CLEAN_NARRATION_STYLE = 'Clear, engaging storytelling narrator at a steady pace. Use natural, silent pauses for punctuation and intentional pause tags. Read continuously across visual scene boundaries; do not add a pause just because the scene changes. No audible breathing, sighs, gasps, whispering, chuckles, laughter, or other non-speech vocal sounds. Keep the same clear speaking voice throughout.'
 
 /** Older scripts can contain performance tags. Keep their words and pause boundaries. */
 export function cleanNarrationText(text: string): string {

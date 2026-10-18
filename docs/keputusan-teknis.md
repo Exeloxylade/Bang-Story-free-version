@@ -17,7 +17,7 @@ proyek nyata). Ejaan caption tetap dari naskah (`align.ts`); dari Whisper hanya 
 ### Potongan adegan mengikuti kata
 Dengan Whisper, adegan dipotong di jeda antara kata terakhir satu adegan dan kata pertama adegan berikutnya
 (`cutsFromWords`), jadi potongan tidak pernah jatuh di tengah kata. Tanpa waktu kata, `chooseCuts` memilih dari
-jeda yang dideteksi FFmpeg. Gemini diberi `<long pause>` di antara adegan supaya jedanya jelas. ElevenLabs
+jeda yang dideteksi FFmpeg. Batas adegan visual tidak menambahkan tag jeda otomatis. ElevenLabs
 memakai waktu kata dari API-nya sendiri.
 
 ### Sorotan caption bertahan di jeda antar kata
@@ -94,3 +94,8 @@ blob terenkripsi lama sekali tanpa membuka kuncinya; setelah itu tidak ada fallb
 ### Narasi bersih dan anggaran render
 Instruksi narasi bersih dibagi oleh prompt naskah dan metadata gaya Gemini, bukan disisipkan sebagai teks yang dibacakan. Tag jeda tetap dipertahankan untuk pemotongan antar-adegan; audio lama perlu dibuat ulang.
 Encoder GPU diuji dengan encode nyata, bukan hanya daftar encoder FFmpeg. Filter kamera/transisi/caption tetap sama dan memakai CPU. Anggaran thread dibagi antar-worker segmen, dengan batas RAM lebih ketat untuk 4K. Kegagalan inisialisasi GPU boleh mencoba CPU; kesalahan filter tidak disembunyikan.
+
+### Kontinuitas narasi melintasi batas adegan (18 Oktober 2026)
+Gemini dan ElevenLabs menerima teks adegan yang disambung dengan spasi biasa, bukan `<long pause>` atau paragraf baru pada setiap batas visual. Kata, tanda baca, dan tag jeda yang memang ditulis pengguna tetap dipertahankan. Larangan napas/desahan/bisikan tetap berlaku; metadata gaya meminta narasi berlanjut melintasi pergantian visual.
+Potongan WAV memakai batas bersama dan durasi aslinya, termasuk adegan di bawah 1,5 detik. Memilih ulang audio bertanda `take` dari riwayat juga tidak menambahkan ekor 400 ms. Audio mandiri lama mempertahankan perilaku sebelumnya. Tidak ada migrasi atau pemotongan otomatis pada rekaman/proyek yang sudah ada; rekaman dengan jeda otomatis lama harus dibuat ulang jika ingin menghilangkannya.
+Uji tanpa API menjalankan FFmpeg asli pada satu WAV lalu menyambung semua hasil: sampel PCM identik dengan sumber, jeda alami tetap ada, naskah dan pemetaan caption per adegan terjaga. Aturan pratinjau/ekspor serta pemisahan adegan untuk gambar/video tidak diubah.

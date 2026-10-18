@@ -1,6 +1,6 @@
 /**
- * Where to cut a take of `weights.length` scenes. Each cut should land in a pause (longer is better, since
- * scenes are separated by <long pause>) close to where the scene is expected to end: from Whisper word
+ * Where to cut a take of `weights.length` scenes. Each cut prefers a natural pause
+ * close to where the scene is expected to end: from Whisper word
  * timings when `known`, else from the scene's share of the text. Solved over all cuts at once so they stay
  * in order; every cut also has its expected spot as a fallback.
  */

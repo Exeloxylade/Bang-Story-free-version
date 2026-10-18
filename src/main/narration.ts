@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import ffmpegStatic from 'ffmpeg-static'
 import { WHISPER_TIMING, captionNeedsSync, estimateWordTimings } from '@shared/captions'
 import { estimateNarrationMs } from '@shared/script'
-import { spokenWords, stripVoiceTags } from '@shared/speech'
+import { joinNarrationScenes, spokenWords, stripVoiceTags } from '@shared/speech'
 import type { Clip, Job, Project, WordTiming } from '@shared/types'
 import { emit } from './events'
 import { runJob, type TaskCtx } from './jobs'
@@ -112,8 +112,8 @@ async function whisperTimes(take: string, words: string[], p: Project, total: nu
 }
 
 async function geminiTake(p: Project, voice: string, group: Clip[], tmp: string, ctx: TaskCtx, note: () => void): Promise<Segment[]> {
-  // A long pause between scenes gives the cutter a clear gap to find.
-  const wav = await gemini.speak(group.map((c) => c.narration.trim()).join('\n<long pause>\n'), voice, p.language, ctx.signal)
+  // Word alignment locates scene cuts; the voice should not announce visual boundaries.
+  const wav = await gemini.speak(joinNarrationScenes(group.map((c) => c.narration)), voice, p.language, ctx.signal)
   const take = join(tmp, `take-${randomUUID()}.wav`)
   writeFileSync(take, wav)
   const total = (await probeDurationMs(take)) / 1000
@@ -176,7 +176,7 @@ async function elevenTake(
   tmp: string,
   ctx: TaskCtx
 ): Promise<Segment[]> {
-  const r = await eleven.speak(group.map((c) => c.narration.trim()).join('\n\n'), voice, p.language, ctx.signal, context)
+  const r = await eleven.speak(joinNarrationScenes(group.map((c) => c.narration)), voice, p.language, ctx.signal, context)
   const take = join(tmp, `take-${randomUUID()}.mp3`)
   writeFileSync(take, r.audio)
   const total = (await probeDurationMs(take)) / 1000
@@ -229,8 +229,9 @@ function store(p: Project, s: Segment, voice: string, takeId: string, bytes: Buf
     meta: { words: s.words, estimatedTimings: s.estimated, voice, take: takeId, ...(s.timedBy ? { timedBy: s.timedBy } : {}) }
   })
   emit.asset(asset)
-  // Each piece already carries half of the pause on either side, so the pieces play back as the one take.
-  const durationMs = Math.max(1500, s.durationMs)
+  // Each piece includes its share of natural pauses. Padding a short piece would
+  // insert silence that was never present in the continuous take.
+  const durationMs = Math.max(1, s.durationMs)
   // A new take starts untrimmed at the clip's start.
   const patch = { audioAssetId: asset.id, durationMs, voiceInMs: 0, voiceOutMs: null, voiceStartMs: 0 }
   patchClip(s.clip.id, patch)
