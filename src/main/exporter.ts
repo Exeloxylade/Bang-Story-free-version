@@ -21,6 +21,7 @@ import {
 import { cameraPerspective, TRANSITIONS, transitionSecOf } from '@shared/motion'
 import { clipCaptionWords, musicSpan, voiceSpan } from '@shared/timeline'
 import { anchorOffset, contrastColor, overlayEnd, textEffects } from '@shared/overlays'
+import { appliedScenePulsePlan, scenePulseAssets, scenePulseSettings, validateScenePulsePlan } from '@shared/scenePulse'
 import type { Asset, Clip, ExportOptions, ImageOverlay, Job, ProjectBundle, TextOverlay } from '@shared/types'
 import { emit } from './events'
 import { runJob, type TaskCtx } from './jobs'
@@ -45,13 +46,14 @@ function outputSize(aspect: '16:9' | '9:16', res: ExportOptions['resolution']): 
 function runFfmpeg(args: string[], cwd: string, signal: AbortSignal, totalSec?: number, onProgress?: (f: number) => void, threads = 2): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new Error('Dibatalkan'))
-    const p = spawn(ffmpegPath(), ['-hide_banner', '-y', '-threads', String(threads), '-filter_threads', String(threads), '-filter_complex_threads', String(threads), ...args], { cwd, windowsHide: true })
+    const p = spawn(ffmpegPath(), ['-hide_banner', '-nostdin', '-y', '-threads', String(threads), '-filter_threads', String(threads), '-filter_complex_threads', String(threads), ...args], { cwd, windowsHide: true, stdio: ['ignore','ignore','pipe'] })
     let tail = ''
     const onAbort = (): void => {
       p.kill('SIGKILL')
     }
     signal.addEventListener('abort', onAbort)
-    p.stderr.on('data', (d: Buffer) => {
+    p.stderr?.on('error', reject)
+    p.stderr?.on('data', (d: Buffer) => {
       const s = d.toString()
       tail = (tail + s).slice(-4000)
       if (totalSec && onProgress) {
@@ -339,20 +341,23 @@ async function renderSegment(
   size: { w: number; h: number },
   tmp: string,
   signal: AbortSignal,
-  plan: RenderPlan
+  plan: RenderPlan,
+  original = false
 ): Promise<string> {
   const { clip } = seg
   const out = `seg_${String(index).padStart(3, '0')}.mp4`
   const len = seg.own + seg.overlap + seg.pad
   const frames = Math.max(1, Math.round(len * opts.fps))
-  const video = clip.motionType === 'video' ? assetOf(bundle, clip.videoAssetId) : undefined
+  const fx = scenePulseSettings(bundle.project)
+  const processed = !original && fx.enabled && fx.motion ? scenePulseAssets(bundle.project,clip,bundle.assets).visual : null
+  const video = processed ?? (clip.motionType === 'video' ? assetOf(bundle, clip.videoAssetId) : undefined)
   const enc = ['-an', ...encodingArgs(plan.encoder, true), '-threads', String(Math.max(1, Math.floor(plan.threads / plan.workers))), '-pix_fmt', 'yuv420p', '-r', String(opts.fps)]
   if (video) {
-    const cam = cameraPerspective(clip.videoCamera, clip.videoStrength, Math.max(2, Math.round(seg.own * opts.fps)), opts.fps)
+    const cam = processed ? null : cameraPerspective(clip.videoCamera, clip.videoStrength, Math.max(2, Math.round(seg.own * opts.fps)), opts.fps)
     const work = cam ? workSize(video.width, video.height, size) : size
     const vf = cameraChain(cam, work, size, [`fps=${opts.fps}`, `tpad=stop_mode=clone:stop_duration=${len.toFixed(3)}`])
     // A video trimmed on the timeline starts that far into its file.
-    const from = clip.mediaInMs > 0 ? ['-ss', (clip.mediaInMs / 1000).toFixed(3)] : []
+    const from = !processed && clip.mediaInMs > 0 ? ['-ss', (clip.mediaInMs / 1000).toFixed(3)] : []
     await runFfmpeg([...from, '-i', assetAbsPath(bundle.project.id, video.localPath), '-vf', vf, '-t', len.toFixed(3), ...enc, out], tmp, signal, undefined, undefined, Math.max(1, Math.floor(plan.threads / plan.workers)))
     return out
   }
@@ -384,11 +389,30 @@ async function renderSegment(
   return out
 }
 
+/** Reuses the original scene renderer so native HyperFrames never loses the chosen crop/camera. */
+export async function renderScenePulseBase(bundle: ProjectBundle, clip: Clip, resolution: 720 | 1080, folder: string, ctx: TaskCtx): Promise<string> {
+  const opts: ExportOptions = {resolution,fps:30,encoder:'cpu',resources:'responsive',fileName:'base',folder,
+    burnCaptions:false,writeSrt:false,normalizeAudio:false,duckMusic:false}
+  const segment={...planSegments([clip],30)[0],pad:0,overlap:0}
+  const output=await renderSegment(bundle,segment,0,opts,outputSize(bundle.project.aspectRatio,resolution),folder,ctx.signal,{encoder:'cpu',workers:1,threads:2},true)
+  return join(folder,output)
+}
+
 async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOptions): Promise<string> {
   const plan = renderPlan(opts, await exportCapabilities())
   if (opts.encoder && opts.encoder !== 'auto' && opts.encoder !== plan.encoder) ctx.progress(0.01, 'GPU tidak tersedia; memakai CPU')
   const bundle = getBundle(projectId)
   if (!bundle.clips.length) throw new Error('Proyek belum punya klip')
+  const fx = scenePulseSettings(bundle.project)
+  if (fx.enabled && (fx.motion || fx.sfx)) {
+    validateScenePulsePlan(bundle.project,bundle.clips,appliedScenePulsePlan(bundle.project,bundle.clips,bundle.assets))
+    for (const [i,clip] of bundle.clips.entries()) {
+      const cached=scenePulseAssets(bundle.project,clip,bundle.assets)
+      if ((fx.motion && (!cached.visual || !existsSync(assetAbsPath(projectId,cached.visual.localPath)))) ||
+          (fx.sfx && (!cached.sfx || !existsSync(assetAbsPath(projectId,cached.sfx.localPath)))))
+        throw new Error(`Motion + SFX adegan ${i+1} belum siap atau sudah berubah. Perbarui efek di panel Efek, atau matikan fiturnya.`)
+    }
+  }
   const size = outputSize(bundle.project.aspectRatio, opts.resolution)
   const tmp = join(dataDir(), 'tmp', `export-${ctx.jobId}`)
   mkdirSync(tmp, { recursive: true })
@@ -526,6 +550,23 @@ async function renderProject(ctx: TaskCtx, projectId: string, opts: ExportOption
         }
         aout = '[mix]'
       } else aout = '[mus]'
+    }
+    if (fx.enabled && fx.sfx) {
+      const effects: string[] = []
+      for (const [i,seg] of segs.entries()) {
+        const sound=scenePulseAssets(bundle.project,seg.clip,bundle.assets).sfx
+        if (!sound) continue
+        args.push('-i',assetAbsPath(projectId,sound.localPath))
+        const delay=Math.round(seg.start*48000)
+        graph.push(`[${inputIndex}:a]atrim=0:${seg.own.toFixed(6)},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,adelay=${delay}S:all=1[fx${i}]`)
+        inputIndex++
+        effects.push(`[fx${i}]`)
+      }
+      if (effects.length) {
+        const inputs=(aout ? [aout] : []).concat(effects)
+        graph.push(`${inputs.join('')}amix=inputs=${inputs.length}:normalize=0:dropout_transition=0,alimiter=limit=.95:level=false:latency=1[withfx]`)
+        aout='[withfx]'
+      }
     }
     if (aout) {
       // loudnorm works at 192 kHz internally, so resample back to 48 kHz afterwards.

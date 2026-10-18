@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
-import { Film, Image as ImageIcon, Layers, Mic, Music, Scissors, Trash2, Type, ZoomIn } from 'lucide-react'
+import { Film, Image as ImageIcon, Layers, Mic, Music, Scissors, Trash2, Type, Volume2, ZoomIn } from 'lucide-react'
 import type { CaptionChunk } from '@shared/captions'
 import { overlayEnd } from '@shared/overlays'
 import { MIN_ITEM_MS, musicSpan, voiceSpan } from '@shared/timeline'
+import { EFFECT_ROLES, EFFECT_SOUNDS, scenePulseMeta } from '@shared/scenePulse'
 import type { Asset, EditorSettings, Overlay, WordTiming } from '@shared/types'
 import { cx } from '../../../components/ui'
 import { errorText, timecode } from '../../../lib/format'
@@ -32,10 +33,11 @@ export type TimelinePick =
   | { kind: 'music' }
   | { kind: 'overlay'; id: string }
   | { kind: 'transition'; id: string }
+  | { kind: 'effects'; id: string }
 
 /** What the inspector is editing right now, so the timeline can mark it. */
 export type TimelineSelection =
-  | { kind: 'clip' | 'voice' | 'overlay' | 'transition'; id: string }
+  | { kind: 'clip' | 'voice' | 'overlay' | 'transition' | 'effects'; id: string }
   | { kind: 'caption'; key: string; from: number }
   | { kind: 'music' }
   | null
@@ -261,7 +263,7 @@ export function Timeline({
       if (mode === 'move') return null
       const dur0 = it.clip.durationMs
       const in0 = it.clip.mediaInMs ?? 0
-      const videoMs = it.clip.motionType === 'video' && it.video?.durationMs ? it.video.durationMs : null
+      const videoMs = it.clip.motionType === 'video' && it.sourceVideo?.durationMs ? it.sourceVideo.durationMs : null
       return {
         move: (d) => {
           if (mode === 'right') {
@@ -448,7 +450,7 @@ export function Timeline({
           <Row label="Klip" icon={<ImageIcon className="size-4" />} height={64}>
             {items.map((it) => {
               const spec = clipSpec(it)
-              const videoLeft = it.clip.motionType === 'video' && it.video?.durationMs ? it.video.durationMs - (it.clip.mediaInMs ?? 0) : null
+              const videoLeft = (it.processed || it.clip.motionType === 'video') && it.video?.durationMs ? it.video.durationMs - (it.processed ? 0 : it.clip.mediaInMs ?? 0) : null
               const held = videoLeft != null && it.clip.durationMs > videoLeft + 50 ? (it.clip.durationMs - videoLeft) / 1000 : 0
               return (
                 <div
@@ -471,7 +473,7 @@ export function Timeline({
                 >
                   <span className="pointer-events-none flex items-center gap-1 self-start">
                     <span className="rounded-[5px] border border-ink bg-surface px-1 font-mono text-[11px]">{String(it.index + 1).padStart(2, '0')}</span>
-                    {it.clip.motionType === 'video' && it.video && (
+                    {(it.processed || it.clip.motionType === 'video') && it.video && (
                       <span className="flex size-[18px] items-center justify-center rounded-[5px] bg-ink text-paper">
                         <Film className="size-3" />
                       </span>
@@ -567,6 +569,19 @@ export function Timeline({
             })}
           </Row>
 
+          {editor.scenePulse?.enabled && editor.scenePulse.sfx && <Row label="SFX" icon={<Volume2 className="size-4"/>} height={30}>
+            {items.flatMap(item=>{
+              if (!item.sfx) return []
+              const plan=scenePulseMeta(item.sfx)?.plan
+              return (plan?.audio ?? []).map((cue,i)=>{
+                const role=EFFECT_ROLES.find(r=>r.id===cue.effectId)!, sound=EFFECT_SOUNDS.find(s=>s.id===role.defaultSoundId)!
+                return <button key={`${item.clip.id}-${i}`} type="button" title={`${role.label} · ${cue.gainDb} dB`} aria-label={`SFX adegan ${item.index+1}: ${role.label}`} aria-pressed={is('effects',item.clip.id)}
+                  onClick={()=>{usePlayback.getState().seek(item.start+cue.startMs/1000);onPick({kind:'effects',id:item.clip.id})}}
+                  className={cx('absolute top-0 flex h-[30px] min-w-3 items-center overflow-hidden rounded-md border border-[#A9C3E3] bg-info-soft px-1 text-xs text-info-ink',is('effects',item.clip.id)&&SELECTED)}
+                  style={{left:(item.start+cue.startMs/1000)*pps+1,width:Math.max(12,sound.durationMs/1000*pps)}}><Volume2 className="size-3 shrink-0"/></button>
+              })
+            })}
+          </Row>}
           <Row label="Musik" icon={<Music className="size-4" />} height={30}>
             {music && (
               <div

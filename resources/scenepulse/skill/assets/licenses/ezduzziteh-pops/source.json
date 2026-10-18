@@ -1,0 +1,59 @@
+{
+  "id": "ezduzziteh-pops",
+  "title": "Pop sounds",
+  "author": "EZduzziteh",
+  "sourceUrl": "https://opengameart.org/content/pop-sounds-0",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "checkedAt": "2026-10-18T12:09:01.846360+00:00",
+  "licenseEvidence": "Source page links to CC0 1.0 Public Domain Dedication.",
+  "attributionRequired": false,
+  "redistributionAllowed": true,
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/pop1.wav",
+      "sha256": "758416a61890a61f4e1f00a65531e75e7d867cad1e96392d829860b8aa3a66f6",
+      "bytes": 10836
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop2.wav",
+      "sha256": "4d3ab0324964adfcddca88c9f7340497e6dbe1ab30e7df474022e50a025ff5ba",
+      "bytes": 13524
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop3.wav",
+      "sha256": "30faec930c94f3812bf9c065f11c67bfca91ac0a5f5da3f84013de0ef1144a6b",
+      "bytes": 23240
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop4.wav",
+      "sha256": "58f92fff4601ffaf6c789bd636bff03c4a9ead002d0f081834c943968f9072e3",
+      "bytes": 15620
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop5.wav",
+      "sha256": "f9cbf450849fd9db716359412664736bbd565800bfd31fb917860bf440c6f82a",
+      "bytes": 74504
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop6.wav",
+      "sha256": "e5283d0cb7411da8185c8d93510b5a83b10525f4af34fdd845c1374db0000538",
+      "bytes": 33404
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop7.wav",
+      "sha256": "a40f1291337bec27f39d8c3b205b61a336f04bc0a269b67c14b4ebe1fb1b0474",
+      "bytes": 8444
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop8.wav",
+      "sha256": "cd3aba60c291ad8491dc5f21f3ff1bdd4ab2c575952562566ec1dc0f61fb5f87",
+      "bytes": 18308
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/pop9.wav",
+      "sha256": "32befa90941346efcde9bedba2da4024279f33f84a47c783a31acf4d568bc050",
+      "bytes": 15916
+    }
+  ]
+}

@@ -24,16 +24,18 @@ import { isRunning, jobFor, useProject } from '../../../store/project'
 import { UNKNOWN_AUDIO_MS, useAudition, useCaptionUi, useTimeline } from './engine'
 import { OverlayPanel } from './OverlayPanel'
 import { TransitionPanel } from './TransitionPanel'
+import { ScenePulsePanel } from './ScenePulsePanel'
 
 /** 'transisi' has no button on the rail; it opens from the round buttons between clips on the timeline. */
-export type InspectorTab = 'klip' | 'suara' | 'caption' | 'overlay' | 'musik' | 'transisi'
+export type InspectorTab = 'klip' | 'suara' | 'caption' | 'overlay' | 'musik' | 'transisi' | 'efek'
 
 export const INSPECTOR_TABS: { id: InspectorTab; label: string; icon: typeof Move }[] = [
   { id: 'klip', label: 'Klip', icon: Move },
   { id: 'suara', label: 'Suara', icon: Mic },
   { id: 'caption', label: 'Caption', icon: Type },
   { id: 'overlay', label: 'Overlay', icon: Layers },
-  { id: 'musik', label: 'Musik', icon: Music }
+  { id: 'musik', label: 'Musik', icon: Music },
+  { id: 'efek', label: 'Efek', icon: Sparkles }
 ]
 
 function Section({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
@@ -853,6 +855,7 @@ export function Inspector({
       {tab === 'overlay' && <OverlayPanel total={total} />}
       {tab === 'musik' && <MusicTab />}
       {tab === 'transisi' && <TransitionView id={transitionId} />}
+      {tab === 'efek' && <ScenePulsePanel clip={clip} />}
     </aside>
   )
 }

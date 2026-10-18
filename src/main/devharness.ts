@@ -292,7 +292,9 @@ export function attachDevHarness(win: BrowserWindow): void {
       await sleep(step.wait ?? 800)
       if (step.shot) {
         try {
-          const img = await win.webContents.capturePage()
+          const opts = process.env.STUDIO_CAPTURE_HIDDEN ? {stayHidden:true,stayAwake:true} : undefined
+          if (opts) { await win.webContents.capturePage(undefined,opts);await sleep(250) }
+          const img = await win.webContents.capturePage(undefined,opts)
           writeFileSync(step.shot, img.toPNG())
         } catch (e) {
           if (log) appendFileSync(log, `[harness] screenshot failed: ${(e as Error).message}\n`)

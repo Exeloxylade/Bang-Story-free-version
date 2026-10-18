@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "upstream": "Bang Tutorial / bang-motion 1.19.0",
+  "families": [
+    {"id":"opener","label":"Pembuka / Promo / Tipografi","starter":"starter-opener.html","durationMs":8000,"references":["opener-konsep.md","techniques.md"]},
+    {"id":"continuous-action","label":"Aksi Berkelanjutan","starter":"starter-explainer.html","durationMs":22000,"references":["explainer.md","techniques.md"]},
+    {"id":"cartoon-collage","label":"Kolase Kartun","starter":"starter-explainer-kartun.html","durationMs":18000,"references":["explainer.md","techniques.md"]},
+    {"id":"visual-journalism","label":"Jurnalisme Visual","starter":"starter-explainer-jurnalisme.html","durationMs":18000,"references":["explainer.md","techniques.md"]},
+    {"id":"white-catalog","label":"Katalog Terang","starter":"starter-explainer-katalog.html","durationMs":18000,"references":["explainer.md","techniques.md"]},
+    {"id":"vintage-sketch","label":"Sketsa Vintage","starter":"starter-explainer-sketsa.html","durationMs":18000,"references":["explainer.md","techniques.md"]},
+    {"id":"cartoon-stage","label":"Panggung Kartun","starter":"starter-explainer-panggung.html","durationMs":12000,"references":["kartun-panggung.md","techniques.md"]}
+  ],
+  "visualStyles": [
+    {"id":"cinematic-dark","label":"Sinematik Gelap","direction":"Gradasi gelap, cahaya pada objek, kedalaman terkontrol."},
+    {"id":"poster-colorblock","label":"Poster Blok Warna","direction":"Tipografi besar dan bidang warna yang berubah mengikuti aksi."},
+    {"id":"editorial-light","label":"Editorial Terang","direction":"Ruang lega, garis halus, hierarki informasi jelas."},
+    {"id":"paper-print","label":"Kertas dan Cetak","direction":"Kolase, tekstur kertas, catatan, stempel, gerak potongan."},
+    {"id":"retro-analog","label":"Retro Analog","direction":"Palet pudar, grain, freeze dan glitch seperlunya."},
+    {"id":"brutalist-mono","label":"Brutalis Monokrom","direction":"Grid tegas, kontras hitam-putih, gerak terstruktur."},
+    {"id":"pastel-playful","label":"Pastel Ceria","direction":"Bentuk membulat, warna lembut, pantulan kecil."},
+    {"id":"luxury-dark","label":"Mewah Gelap","direction":"Aksen emas atau perunggu, gerak lambat, cahaya menyapu."},
+    {"id":"flat-pop-photo","label":"Flat Pop Berfoto","direction":"Potongan foto dengan bentuk flat dan pop visual."},
+    {"id":"grainy-gradient","label":"Gradasi Bertekstur","direction":"Lapisan bentuk bergradasi, butiran halus, kamera menembus ruang."}
+  ]
+}

@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { timelineChunks, type CaptionChunk } from '@shared/captions'
 import { transitionSecOf } from '@shared/motion'
 import { clipCaptionWords, voiceSpan } from '@shared/timeline'
+import { scenePulseAssets, scenePulseSettings } from '@shared/scenePulse'
 import type { Asset, Clip, Overlay, TransitionId } from '@shared/types'
 import { useProject } from '../../../store/project'
 
@@ -13,7 +14,10 @@ export interface TimelineItem {
   end: number
   image: Asset | null
   video: Asset | null
+  sourceVideo: Asset | null
   audio: Asset | null
+  sfx: Asset | null
+  processed: boolean
 }
 
 interface PlaybackState {
@@ -102,19 +106,26 @@ export function removeOverlay(id: string): void {
 export function useTimeline(): { items: TimelineItem[]; total: number; chunks: CaptionChunk[] } {
   const clips = useProject((s) => s.clips)
   const assets = useProject((s) => s.assets)
+  const project = useProject((s) => s.project)
   return useMemo(() => {
     let acc = 0
     const items = clips.map((clip, index) => {
       const start = acc
       acc += clip.durationMs / 1000
+      const settings = project && scenePulseSettings(project)
+      const cached = project && settings?.enabled ? scenePulseAssets(project,clip,Object.values(assets)) : null
+      const processed = !!(settings?.motion && cached?.visual)
       return {
         clip,
         index,
         start,
         end: acc,
         image: clip.imageAssetId ? (assets[clip.imageAssetId] ?? null) : null,
-        video: clip.videoAssetId ? (assets[clip.videoAssetId] ?? null) : null,
-        audio: clip.audioAssetId ? (assets[clip.audioAssetId] ?? null) : null
+        video: processed ? cached!.visual : clip.videoAssetId ? (assets[clip.videoAssetId] ?? null) : null,
+        sourceVideo: clip.videoAssetId ? (assets[clip.videoAssetId] ?? null) : null,
+        audio: clip.audioAssetId ? (assets[clip.audioAssetId] ?? null) : null,
+        sfx: settings?.sfx ? cached?.sfx ?? null : null,
+        processed
       }
     })
     // Captions follow each clip's voice as trimmed and placed on the timeline (as in the export).
@@ -126,7 +137,7 @@ export function useTimeline(): { items: TimelineItem[]; total: number; chunks: C
       })
     )
     return { items, total: acc, chunks }
-  }, [clips, assets])
+  }, [clips, assets, project?.aspectRatio, project?.styleId, project?.editor.scenePulse])
 }
 
 /** An audio length to assume when an older asset never recorded its duration. */
@@ -163,6 +174,7 @@ export function usePlaybackEngine(
   musicRange: { startSec: number; endSec: number; inSec: number } = { startSec: 0, endSec: Infinity, inSec: 0 }
 ): void {
   const voices = useRef(new Map<string, HTMLAudioElement>())
+  const effects = useRef(new Map<string, HTMLAudioElement>())
   const musicEl = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -185,6 +197,17 @@ export function usePlaybackEngine(
       }
     }
   }, [items])
+
+  useEffect(() => {
+    const map=effects.current, keep=new Set<string>()
+    for (const item of items) {
+      if (!item.sfx) continue
+      const key=`${item.clip.id}|${item.sfx.id}`
+      keep.add(key)
+      if (!map.has(key)) { const audio=new Audio(item.sfx.url);audio.preload='auto';map.set(key,audio) }
+    }
+    for (const [key,audio] of map) if (!keep.has(key)) {audio.pause();map.delete(key)}
+  },[items])
 
   useEffect(() => {
     musicEl.current?.pause()
@@ -222,6 +245,17 @@ export function usePlaybackEngine(
           } else if (Math.abs(a.currentTime - target) > 0.3) a.currentTime = target
         } else if (!a.paused) a.pause()
       })
+      for (const item of items) {
+        if (!item.sfx) continue
+        const sound=effects.current.get(`${item.clip.id}|${item.sfx.id}`)
+        if (!sound) continue
+        sound.volume=1/loudest
+        const target=t-item.start
+        if (playing && t>=item.start && t<item.end) {
+          if (sound.paused) {sound.currentTime=target;void sound.play().catch(()=>{})}
+          else if (Math.abs(sound.currentTime-target)>.15) sound.currentTime=target
+        } else if (!sound.paused) sound.pause()
+      }
       const m = musicEl.current
       if (m) {
         m.volume = Math.min(1, (dbToGain(musicDb) * (duck && voiceActive ? 0.35 : 1)) / loudest)
@@ -251,6 +285,7 @@ export function usePlaybackEngine(
     return () => {
       cancelAnimationFrame(raf)
       for (const a of voices.current.values()) a.pause()
+      for (const a of effects.current.values()) a.pause()
       musicEl.current?.pause()
     }
   }, [items, total, musicDb, duck, voiceDb, musicRange.startSec, musicRange.endSec, musicRange.inSec])

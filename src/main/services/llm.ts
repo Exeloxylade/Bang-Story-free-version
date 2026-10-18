@@ -310,6 +310,6 @@ export function activeLlm(): ActiveLlm {
 export async function generateJson<T>(req: { system: string; prompt: string; schema: object; name: string; signal?: AbortSignal }): Promise<T> {
   const { provider, model } = activeLlm()
   if (!model) throw new LlmError(`Pilih model ${PROVIDER_NAMES[provider]} dulu di Pengaturan › Kunci API dan model.`)
-  if (provider === 'gemini') return (await gemini.generateJson(model, req.system, req.prompt, req.schema)) as T
+  if (provider === 'gemini') return (await gemini.generateJson(model, req.system, req.prompt, req.schema, req.signal)) as T
   return (await chatJson(compat(provider), model, req.system, req.prompt, req.schema, req.name, req.signal)) as T
 }

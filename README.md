@@ -38,6 +38,8 @@ Semua proyek, gambar, video, dan suara disimpan di komputermu. Kamu memakai kunc
 
 ## Fitur
 
+**Motion + SFX opsional:** buka **Editor → Efek**, aktifkan ScenePulse, pilih gaya, lalu tambahkan efek. Skill dan pustaka suara ikut disertakan; rencana memakai LLM pilihanmu. Gerak dirender dengan HyperFrames headless, dan SFX mengikuti narasi di pratinjau maupun ekspor. Lihat [panduan ScenePulse](docs/scenepulse.md).
+
 ### Google Flow: login langsung dari Bang Story
 
 Di **Pengaturan → Google Flow**, klik **Hubungkan Google Flow**. Saat pertama kali, Bang Story memasang kebutuhan dan menjalankan layanan lokal otomatis. Klik **Pasang extension / panduan** untuk memasang Flow Account Connector sekali. Salin kode pairing, login ke studio Flow di browser kamu sendiri, lalu buka extension dan klik **Connect this account**; sesi diperiksa dan akun ditambahkan otomatis. Tidak perlu menyalin cookie atau mengisi kunci API lokal.

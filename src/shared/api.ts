@@ -24,9 +24,15 @@ import type {
   TtsProvider,
   VoiceOption
 } from './types'
+import type { ScenePulseStatus } from './scenePulse'
 
 /** The typed surface the preload script exposes as `window.api`. */
 export interface StudioApi {
+  scenePulse: {
+    status(): Promise<ScenePulseStatus>
+    install(projectId: string): Promise<Job>
+    generate(projectId: string, options?: {clipIds?: string[];force?: boolean}): Promise<Job>
+  }
   projects: {
     list(): Promise<ProjectSummary[]>
     create(input: NewProjectInput): Promise<ProjectBundle>

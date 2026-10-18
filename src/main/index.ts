@@ -66,7 +66,9 @@ function createWindow(): void {
     }
   })
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => {
+    if (app.isPackaged || !process.env.STUDIO_CAPTURE_PLAN || !process.env.STUDIO_CAPTURE_HIDDEN) win.show()
+  })
   identifyToYouTube()
   attachDevHarness(win)
 

@@ -1,0 +1,19 @@
+{
+  "id": "kenney-interface",
+  "title": "Interface Sounds",
+  "author": "Kenney",
+  "sourceUrl": "https://kenney.nl/assets/interface-sounds",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "checkedAt": "2026-10-18T12:09:01.846360+00:00",
+  "licenseEvidence": "Source page links to CC0 1.0 Public Domain Dedication.",
+  "attributionRequired": false,
+  "redistributionAllowed": true,
+  "downloads": [
+    {
+      "url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "bytes": 834536
+    }
+  ]
+}

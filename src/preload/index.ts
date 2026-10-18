@@ -15,6 +15,11 @@ const listen =
   }
 
 const api: StudioApi = {
+  scenePulse: {
+    status: call('scenePulse:status'),
+    install: call('scenePulse:install'),
+    generate: call('scenePulse:generate')
+  },
   projects: {
     list: call('projects:list'),
     create: call('projects:create'),

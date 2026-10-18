@@ -1,0 +1,17 @@
+{
+  "name": "scenepulse-motion-runtime",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Headless HyperFrames and Bang Motion rendering for ScenePulse",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@puppeteer/browsers": "3.2.5",
+    "gsap": "3.12.5",
+    "hyperframes": "0.8.171",
+    "puppeteer": "25.14.0",
+    "three": "0.161.0"
+  }
+}

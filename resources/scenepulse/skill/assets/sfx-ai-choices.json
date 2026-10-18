@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "status": "draft-no-ai-consumer-yet",
+  "choices": [
+    {
+      "id": "transition",
+      "label": "Transisi",
+      "useWhen": "Pergantian adegan atau gerakan grafis.",
+      "defaultSoundId": "artisticdude-swishes-swish-1",
+      "soundIds": [
+        "artisticdude-swishes-swish-1",
+        "artisticdude-swishes-swish-7"
+      ]
+    },
+    {
+      "id": "pop",
+      "label": "Pop",
+      "useWhen": "Kemunculan elemen kecil atau penanda visual.",
+      "defaultSoundId": "ezduzziteh-pops-pop1",
+      "soundIds": [
+        "ezduzziteh-pops-pop1",
+        "ezduzziteh-pops-pop3"
+      ]
+    },
+    {
+      "id": "click",
+      "label": "Klik",
+      "useWhen": "Satu langkah atau perubahan kecil yang terlihat.",
+      "defaultSoundId": "kenney-interface-click-001",
+      "soundIds": [
+        "kenney-interface-click-001"
+      ]
+    },
+    {
+      "id": "tick",
+      "label": "Tick",
+      "useWhen": "Penanda singkat pada daftar atau hitungan visual.",
+      "defaultSoundId": "kenney-interface-tick-001",
+      "soundIds": [
+        "kenney-interface-tick-001"
+      ]
+    },
+    {
+      "id": "pluck",
+      "label": "Pluck",
+      "useWhen": "Aksen nada pendek untuk sorotan visual ringan.",
+      "defaultSoundId": "kenney-interface-pluck-001",
+      "soundIds": [
+        "kenney-interface-pluck-001"
+      ]
+    },
+    {
+      "id": "bong",
+      "label": "Bong",
+      "useWhen": "Aksen nada pendek pada pergantian bagian; gunakan jarang.",
+      "defaultSoundId": "kenney-interface-bong-001",
+      "soundIds": [
+        "kenney-interface-bong-001"
+      ]
+    }
+  ],
+  "noEffect": {
+    "id": "none",
+    "label": "Tanpa efek"
+  },
+  "rules": [
+    "Pilih satu ID jenis efek atau none; jangan membaca seluruh koleksi sumber.",
+    "Utamakan none jika tidak ada perubahan visual yang membutuhkan efek.",
+    "Jangan tambahkan efek pada setiap adegan atau kalimat.",
+    "Variasi berkas ditangani aplikasi, bukan keputusan tambahan untuk AI.",
+    "Katalog ini belum disetujui lewat peninjauan dengar; jangan aktifkan penempatan otomatis sebelum peninjauan."
+  ]
+}

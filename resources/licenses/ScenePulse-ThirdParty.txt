@@ -1,0 +1,23 @@
+ScenePulse v0.3.0, Exeloxylade, MIT
+Source: https://github.com/Exeloxylade/ScenePulse/tree/fe470c8
+The full portable skill and its notices are in resources/scenepulse/skill.
+Bang Motion guides/starters: Bang Tutorial, MIT; original license and pinned file hashes are retained there.
+Eight SFX assets: CC0-1.0; authors, source URLs, redistribution metadata and original notices accompany the skill.
+
+HyperFrames 0.8.171, HeyGen, Apache-2.0
+Source: https://github.com/heygen-com/hyperframes
+License text retrieved from https://raw.githubusercontent.com/heygen-com/hyperframes/main/LICENSE
+See HyperFrames-APACHE-2.0.txt. Installed npm dependency retains its package metadata.
+
+GSAP 3.12.5, GreenSock
+Its own standard license applies: https://gsap.com/standard-license
+The distributed runtime retains its embedded copyright/license header, npm package license declaration and README.
+
+ffprobe-static 3.1.0 wrapper: Josh Johnston, MIT; see ffprobe-static-MIT.txt.
+Source: https://github.com/joshwnj/ffprobe-static
+The Windows binary is FFmpeg ffprobe 4.0.2, built with GPL/version3 enabled, distributed by that package from the historical Zeranoe builds.
+See ffprobe-GPLv3.txt and the installed package README for its binary provenance.
+FFmpeg source for this version: https://ffmpeg.org/releases/ffmpeg-4.0.2.tar.xz
+
+Chrome headless shell is downloaded separately from Google's official Chrome for Testing distribution.
+Its bundled notices remain in its runtime directory. It does not share the user's signed-in browser profile.

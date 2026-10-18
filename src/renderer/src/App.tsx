@@ -12,7 +12,8 @@ const KIND_LABEL: Record<string, string> = {
   sheet: 'Lembar karakter',
   video: 'Video AI',
   tts: 'Suara',
-  export: 'Ekspor'
+  export: 'Ekspor',
+  effects: 'Motion + SFX'
 }
 
 export function App() {

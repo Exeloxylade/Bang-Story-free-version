@@ -2,6 +2,7 @@
 node_modules
 out
 dist
+tmp/
 
 # Release archives belong on GitHub Releases, not in the repo
 *.zip

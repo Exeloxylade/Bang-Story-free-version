@@ -56,6 +56,8 @@ import * as flowSetup from './flowSetup'
 import * as hf from './services/higgsfield'
 import * as llm from './services/llm'
 import { generateScript, generateVisuals, generateMusicPrompt } from './story'
+import { generateScenePulse, installScenePulse } from './scenePulse'
+import { scenePulseStatus } from './scenePulseRuntime'
 
 
 type Handler = (...args: any[]) => unknown
@@ -84,6 +86,9 @@ function defaultExportFolder(): string {
 }
 
 export function registerIpc(): void {
+  handle('scenePulse:status', () => scenePulseStatus())
+  handle('scenePulse:install', (id: string) => installScenePulse(id))
+  handle('scenePulse:generate', (id: string, options?: {clipIds?:string[];force?:boolean}) => generateScenePulse(id,options))
   handle('projects:list', () => listProjects())
   handle('projects:create', (input: NewProjectInput) => getBundle(createProject(input).id))
   handle('projects:get', (id: string) => getBundle(id))

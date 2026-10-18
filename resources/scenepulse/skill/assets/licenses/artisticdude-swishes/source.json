@@ -1,0 +1,19 @@
+{
+  "id": "artisticdude-swishes",
+  "title": "Swishes Sound Pack",
+  "author": "artisticdude",
+  "sourceUrl": "https://opengameart.org/content/swishes-sound-pack",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "checkedAt": "2026-10-18T12:09:01.846360+00:00",
+  "licenseEvidence": "Source page links to CC0 1.0 Public Domain Dedication.",
+  "attributionRequired": false,
+  "redistributionAllowed": true,
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/swishes.zip",
+      "sha256": "7980215241b739a787dcf26f660ce510bb237900968789395a86911619795693",
+      "bytes": 385150
+    }
+  ]
+}

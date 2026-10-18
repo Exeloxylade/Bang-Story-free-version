@@ -36,6 +36,18 @@ if not exist "node_modules\.bangstory-windows" (
 )
 
 rem Electron mengunduh programnya sendiri saat pertama dipakai.
+rem ZIP updates can add dependencies even when node_modules is already present.
+node -e "const fs=require('node:fs'),p=require('./package.json');for(const n of ['hyperframes','@puppeteer/browsers','gsap','ffprobe-static']){const f='node_modules/'+n+'/package.json';if(!fs.existsSync(f)||JSON.parse(fs.readFileSync(f,'utf8')).version!==p.dependencies[n])process.exit(1)}" >nul 2>nul
+if errorlevel 1 (
+  echo  Memperbarui komponen Motion dan SFX...
+  call npm install
+  if errorlevel 1 (
+    echo  Gagal memperbarui komponen. Periksa koneksi internet lalu coba lagi.
+    pause
+    exit /b 1
+  )
+)
+
 if not exist "node_modules\electron\dist\electron.exe" (
   echo  Mengunduh Electron...
   call node "node_modules\electron\install.js"

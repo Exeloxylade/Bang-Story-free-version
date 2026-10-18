@@ -9,6 +9,8 @@ files:
   - '!**/*.map'
   - '!node_modules/ffmpeg-static/{README.md,example.js,install.js,ffmpeg.exe.README}'
 extraResources:
+  - from: resources/scenepulse
+    to: scenepulse
   - from: resources/fonts
     to: fonts
   - from: node_modules/ffmpeg-static/ffmpeg.exe.LICENSE
@@ -18,6 +20,8 @@ extraResources:
   - from: resources/whisper
     to: whisper
 asarUnpack:
+  # HyperFrames' child Node process resolves its CLI and assets outside asar.
+  - node_modules/**
   - node_modules/ffmpeg-static/**
   - '**/*.node'
 win:

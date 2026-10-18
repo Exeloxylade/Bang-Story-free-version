@@ -100,7 +100,7 @@ export function EditorStep() {
   const sel = selIndex >= 0 ? clips[selIndex] : null
 
   // Every extra overlay row makes the timeline taller, up to about half the window.
-  const timelineHeight = 330 + (Math.max(1, overlayLanes(project.editor.overlays ?? [], total).length) - 1) * 38
+  const timelineHeight = 330 + (Math.max(1, overlayLanes(project.editor.overlays ?? [], total).length) - 1) * 38 + (project.editor.scenePulse?.enabled && project.editor.scenePulse.sfx ? 38 : 0)
 
   // The timeline marks whatever the open panel is editing, so only one thing ever looks selected.
   const selection = ((): TimelineSelection => {
@@ -110,6 +110,7 @@ export function EditorStep() {
     if (tab === 'caption' && captionSel) return { kind: 'caption', key: captionSel.key, from: captionSel.from }
     if (tab === 'musik' && music) return { kind: 'music' }
     if (tab === 'overlay' && selectedOverlayId) return { kind: 'overlay', id: selectedOverlayId }
+    if (tab === 'efek' && selectedClipId) return {kind:'effects',id:selectedClipId}
     return null
   })()
 
@@ -184,7 +185,8 @@ export function EditorStep() {
     } else if (p.kind === 'caption') {
       if (p.chunk.source) selectCaption({ key: p.chunk.source.key, from: p.chunk.source.from })
       setTab('caption')
-    } else if (p.kind === 'music') setTab('musik')
+    } else if (p.kind === 'effects') {select(p.id);setTab('efek')}
+    else if (p.kind === 'music') setTab('musik')
     else if (p.kind === 'transition') {
       setTransitionId(p.id)
       setTab('transisi')
@@ -197,7 +199,7 @@ export function EditorStep() {
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)]" style={{ gridTemplateRows: `minmax(0,1fr) min(${timelineHeight}px, 52vh)` }}>
       <div className="grid min-h-0 grid-cols-[84px_minmax(0,1fr)_360px]">
-        <nav aria-label="Panel editor" className="flex flex-col items-center gap-1 border-r border-line bg-surface py-3">
+        <nav aria-label="Panel editor" className="scroll-thin flex min-h-0 flex-col items-center gap-1 overflow-y-auto border-r border-line bg-surface py-3">
           {INSPECTOR_TABS.map((t) => {
             const Icon = t.icon
             const on = tab === t.id
@@ -239,7 +241,7 @@ export function EditorStep() {
         selection={selection}
         onPick={onPick}
         canSplit={canSplit}
-        canDelete={!!selection}
+        canDelete={!!selection && selection.kind !== 'effects'}
         onSplit={() => void onSplit()}
         onDelete={() => void onDelete()}
       />

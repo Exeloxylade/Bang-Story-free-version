@@ -1,4 +1,5 @@
 import type { VisualStyleOverride } from './styles'
+import type { ScenePulseSettings } from './scenePulse'
 
 export type InstructionMode = 'original' | 'custom'
 export type ProjectStatus = 'draft' | 'script' | 'storyboard' | 'editing' | 'exported'
@@ -19,6 +20,7 @@ export type CaptionSize = 'kecil' | 'sedang' | 'besar'
 export type Step = 1 | 2 | 3 | 4
 
 export interface EditorSettings {
+  scenePulse?: ScenePulseSettings
   captionStyle: CaptionStyleId
   captionPosition: CaptionPosition
   captionSize: CaptionSize
@@ -163,7 +165,7 @@ export interface Clip {
   audioAssetId: string | null
 }
 
-export type AssetKind = 'image' | 'video' | 'audio' | 'music' | 'overlay' | 'export'
+export type AssetKind = 'image' | 'video' | 'audio' | 'music' | 'overlay' | 'export' | 'sfx'
 
 export interface WordTiming {
   text: string
@@ -199,7 +201,7 @@ export interface Asset {
 }
 
 /** "narration" voices several scenes in one take and cuts it per scene. */
-export type JobKind = 'story' | 'image' | 'sheet' | 'video' | 'tts' | 'narration' | 'align' | 'export'
+export type JobKind = 'story' | 'image' | 'sheet' | 'video' | 'tts' | 'narration' | 'align' | 'export' | 'effects'
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'canceled'
 
 export interface Job {

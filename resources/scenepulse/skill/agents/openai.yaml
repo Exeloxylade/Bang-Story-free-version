@@ -1,0 +1,4 @@
+interface:
+  display_name: "ScenePulse"
+  short_description: "Efek suara dan gerak untuk video bercerita"
+  default_prompt: "Use $scenepulse to add restrained sound effects and motion graphics to my storytelling video."

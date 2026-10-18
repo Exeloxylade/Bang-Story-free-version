@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "defaultStyleId": "minimal-clean",
+  "styles": [
+    {"id":"minimal-clean","label":"Minimal Bersih","description":"Efek jarang, gerak halus, narasi dominan.","maxSfxPerMinute":8,"minSfxGapMs":4000,"sfxGainDb":-24,"maxSfxGainDb":-18,"maxCameraAmount":0.04,"accentColor":"#83C5FF","maxGraphicsPerScene":1,"guidance":"Utamakan tanpa efek; aksen hanya untuk pergantian penting."},
+    {"id":"documentary","label":"Dokumenter","description":"Tenang, informatif, sorotan fakta seperlunya.","maxSfxPerMinute":6,"minSfxGapMs":6000,"sfxGainDb":-26,"maxSfxGainDb":-20,"maxCameraAmount":0.05,"accentColor":"#E8C56A","maxGraphicsPerScene":1,"guidance":"Gerak lambat; hindari pop lucu dan aksen berulang."},
+    {"id":"playful-explainer","label":"Penjelasan Ceria","description":"Pop ringan dan gerak kecil untuk penjelasan visual.","maxSfxPerMinute":14,"minSfxGapMs":2500,"sfxGainDb":-22,"maxSfxGainDb":-16,"maxCameraAmount":0.06,"accentColor":"#FFB84D","maxGraphicsPerScene":2,"guidance":"Pop untuk elemen baru; bukan untuk setiap kalimat atau kata."},
+    {"id":"cinematic-calm","label":"Sinematik Tenang","description":"Gerakan lembut dan transisi terpilih, tanpa ledakan berlebihan.","maxSfxPerMinute":6,"minSfxGapMs":7000,"sfxGainDb":-26,"maxSfxGainDb":-20,"maxCameraAmount":0.07,"accentColor":"#D8DEE9","maxGraphicsPerScene":1,"guidance":"Biarkan komposisi bernapas; jangan berpura-pura punya riser atau boom yang tidak tersedia."},
+    {"id":"infographic","label":"Infografis","description":"Sorotan dan tick untuk daftar, peta, serta perbandingan.","maxSfxPerMinute":12,"minSfxGapMs":3000,"sfxGainDb":-24,"maxSfxGainDb":-18,"maxCameraAmount":0.02,"accentColor":"#4DDCB6","maxGraphicsPerScene":2,"guidance":"Prioritaskan keterbacaan; jangan memperbesar teks hingga terpotong."},
+    {"id":"energetic","label":"Dinamis","description":"Aksen lebih sering dengan gerak tetap terkendali.","maxSfxPerMinute":18,"minSfxGapMs":1800,"sfxGainDb":-22,"maxSfxGainDb":-16,"maxCameraAmount":0.08,"accentColor":"#FF7D93","maxGraphicsPerScene":2,"guidance":"Variasikan jarak dan sisakan adegan tenang; jangan gunakan kamera goyang terus-menerus."}
+  ]
+}

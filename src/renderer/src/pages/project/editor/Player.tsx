@@ -27,9 +27,9 @@ function hexA(hex: string, a: number): string {
 
 function Frame({ item, local, playing, style }: { item: TimelineItem; local: number; playing: boolean; style?: CSSProperties }) {
   const video = useRef<HTMLVideoElement>(null)
-  const useVideo = item.clip.motionType === 'video' && !!item.video
+  const useVideo = (item.processed || item.clip.motionType === 'video') && !!item.video
   // A video trimmed on the timeline starts that far into its file.
-  const vt = (item.clip.mediaInMs ?? 0) / 1000 + local
+  const vt = (item.processed ? 0 : (item.clip.mediaInMs ?? 0) / 1000) + local
 
   useEffect(() => {
     const v = video.current
@@ -57,13 +57,13 @@ function Frame({ item, local, playing, style }: { item: TimelineItem; local: num
           ref={video}
           src={item.video!.url}
           // The clip image is the video's first frame, so it only stands in when the clip starts there.
-          poster={(item.clip.mediaInMs ?? 0) > 0 ? undefined : item.image?.url}
+          poster={item.processed || (item.clip.mediaInMs ?? 0) > 0 ? undefined : item.image?.url}
           muted
           playsInline
           className="absolute inset-0 size-full object-cover will-change-transform"
           // A moving video is kept just short of opaque so it is never promoted to a hardware overlay,
           // which would snap the camera move to whole pixels and make it tremble.
-          style={{ transform: cameraCss(videoCam), opacity: (item.clip.videoCamera ?? 'static') === 'static' ? 1 : 0.999 }}
+          style={{ transform: item.processed ? undefined : cameraCss(videoCam), opacity: item.processed || (item.clip.videoCamera ?? 'static') === 'static' ? 1 : 0.999 }}
         />
       ) : item.image ? (
         <img
