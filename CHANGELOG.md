@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Pembacaan video Flow mendukung state numerik pada record baru dan signed URL tanpa `/video/`. Poster dipisahkan dari video; state selesai yang belum punya URL tetap dipolling sampai hasil siap. Tes mencakup pengiriman hasil ke unduhan Bang Story.
 - Connector 1.1.7 memperbaiki izin route lookup hasil video dan memilih ulang tab akun yang responsif pada setiap permintaan. Timeout tidak mengulang submit otomatis; kegagalan verifikasi tab ditampilkan jelas dan menghentikan antrean yang belum mulai. Reload extension dan refresh studio Flow setelah update; pairing tetap tersimpan.
 - Pembaruan Flow2API memvalidasi respons submit video, membaca status gagal/sukses eksplisit, dan tidak lagi menganggap respons polling tak dikenal sebagai Active. Dashboard menampilkan status tak dikenal, waktu tunggu, serta batas timeout; tidak memakai persentase render buatan saat menunggu video.
 - Pilihan Asli/Kustom terpisah untuk instruksi naskah, storyboard, dan setiap gaya visual. Beralih ke Asli mempertahankan teks kustom. Prompt gambar dan instruksi karakter reference sheet dapat diedit per gaya; planner storyboard menerima batasan gaya yang sama dengan generator gambar.

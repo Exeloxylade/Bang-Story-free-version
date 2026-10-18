@@ -122,3 +122,22 @@ test("RPC timeouts retain uncertain submission guidance", () => {
   const error=flowFailure("private-data [rpc/request_timeout]")
   assert.ok(error instanceof FlowSetupError);assert.match(error.message,/belum pasti/);assert.doesNotMatch(error.message,/private-data/)
 })
+
+
+test('completed Flow video with an opaque signed URL downloads into Bang Story', async () => {
+  const oldFetch=global.fetch
+  const signed='https://flow-content.google/opaque-result?Expires=123&Signature=fixture'
+  const video=Buffer.from('00000018667479706d703432000000006d70343269736f6d','hex')
+  let downloaded
+  const api=load('main/services/flow2api.ts', {
+    '@shared/media':{flowModelId:id=>id,FLOW_PREFIX:'flow2api:'},'@shared/flowErrors':{flowFailure},
+    '../secrets':{requireSecret:()=> 'fake-key'},'../settings':{getSettings:()=>({flowLocalEnabled:false,flowBaseUrl:'http://localhost:8000'})},
+    './http':{downloadTo:async url=>{downloaded=url;return {bytes:video,contentType:'video/mp4'}}},
+    '../flowSetup':{LOCAL_FLOW_URL:'http://localhost:8000',flowSetupStatus:()=>({state:'stopped'})}
+  })
+  try {
+    global.fetch=async()=>new Response('data: '+JSON.stringify({choices:[{delta:{content:`<video src='${signed}' controls></video>`}}]})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}})
+    const result=await api.generate('omni-1.1-flash-4s-portrait','test',[],'video',new AbortController().signal,()=>{})
+    assert.equal(downloaded,signed);assert.equal(result.contentType,'video/mp4');assert.deepEqual(result.bytes,video)
+  } finally {global.fetch=oldFetch}
+})
