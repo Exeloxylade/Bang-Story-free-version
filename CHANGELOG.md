@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Pembaruan Flow2API memvalidasi respons submit video, membaca status gagal/sukses eksplisit, dan tidak lagi menganggap respons polling tak dikenal sebagai Active. Dashboard menampilkan status tak dikenal, waktu tunggu, serta batas timeout; tidak memakai persentase render buatan saat menunggu video.
 - Pilihan Asli/Kustom terpisah untuk instruksi naskah, storyboard, dan setiap gaya visual. Beralih ke Asli mempertahankan teks kustom. Prompt gambar dan instruksi karakter reference sheet dapat diedit per gaya; planner storyboard menerima batasan gaya yang sama dengan generator gambar.
 - Pengaturan lanjutan untuk mengedit instruksi kreatif naskah/hook dan storyboard/karakter, dengan simpan terpisah serta pulihkan bawaan. Berlaku untuk generasi berikutnya di semua proyek; format keluaran, konteks proyek, dan narasi dengan jeda hening tetap disertakan.
 - Template narasi Gemini memakai jeda hening tanpa napas, desahan, atau bisikan; tag efek vokal dari naskah lama dibersihkan saat membuat audio baru.
