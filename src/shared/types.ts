@@ -325,6 +325,7 @@ export interface FlowAccount {
   email: string
   ready: boolean
   enabled: boolean
+  connectionError?: string
 }
 
 export interface FlowSetupStatus {

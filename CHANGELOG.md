@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Connector 1.1.8 mempertahankan selector akun dari URL atau RPC asli pada sesi halaman yang sama, dan membedakan kegagalan jaringan/HTTP. Verifikasi kredit akun paired memakai satu permintaan; pairing yang tersimpan tidak dihapus ketika pengecekan gagal. Bang Story menghapus kode yang sudah dipakai dan menampilkan alasan gagal kredit tanpa menunggu berulang.
 - Pembacaan video Flow mendukung state numerik pada record baru dan signed URL tanpa `/video/`. Poster dipisahkan dari video; state selesai yang belum punya URL tetap dipolling sampai hasil siap. Tes mencakup pengiriman hasil ke unduhan Bang Story.
 - Connector 1.1.7 memperbaiki izin route lookup hasil video dan memilih ulang tab akun yang responsif pada setiap permintaan. Timeout tidak mengulang submit otomatis; kegagalan verifikasi tab ditampilkan jelas dan menghentikan antrean yang belum mulai. Reload extension dan refresh studio Flow setelah update; pairing tetap tersimpan.
 - Pembaruan Flow2API memvalidasi respons submit video, membaca status gagal/sukses eksplisit, dan tidak lagi menganggap respons polling tak dikenal sebagai Active. Dashboard menampilkan status tak dikenal, waktu tunggu, serta batas timeout; tidak memakai persentase render buatan saat menunggu video.

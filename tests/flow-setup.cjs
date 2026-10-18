@@ -211,3 +211,20 @@ test('invalid or removed reconnect IDs are rejected before pairing', async () =>
     assert.equal(f.opened.length, 0)
   } finally {f.clean()}
 })
+
+
+test('second account credit failure ends setup with a safe reason and preserves the first account', async () => {
+  const f=fixture()
+  try {
+    await f.api.connectFlowAccount()
+    f.state.email='two@example.com'
+    f.state.onOpen=async()=>{f.tokens.push({id:2,email:f.state.email,browser_bridge:true,browser_connected:true,credits_updated_at:null,last_st_refresh_result:'private-cookie [rpc/http_400]'})}
+    await assert.rejects(f.api.connectFlowAccount(),/http_400/)
+    const state=f.api.flowSetupStatus()
+    assert.equal(state.connecting,false);assert.equal(state.pairingCode,null)
+    assert.equal(state.accounts.find(a=>a.id===1).ready,true)
+    assert.equal(state.accounts.find(a=>a.id===2).ready,false)
+    assert.match(state.error,/Pairing tersimpan/);assert.match(state.error,/Tidak perlu pairing ulang/)
+    assert.ok(!JSON.stringify(f.events).includes('private-cookie'))
+  } finally {f.clean()}
+})

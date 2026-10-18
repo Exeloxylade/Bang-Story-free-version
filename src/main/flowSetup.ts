@@ -16,7 +16,7 @@ import { removeAccountProfile } from './flowAccounts'
 
 export const LOCAL_FLOW_URL = 'http://127.0.0.1:8765'
 const FLOW_REPOSITORY = 'Exeloxylade/flow2api-English'
-const REV = '2dae4cab422f49fd58e8f10279bc3d081a42081e'
+const REV = '9b7b9103599198eae43222e415393f1722b5af3c'
 const PYTHON_URL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.12.15%2B20261009-x86_64-pc-windows-msvc-install_only.tar.gz'
 const PYTHON_SHA = '194c8f0d9e0de6f1c4576e5dfa67819a48c764be87608b74b8ad43387a57b93b'
 const root = (): string => join(dataDir(), 'tools', 'flow2api')
@@ -184,20 +184,40 @@ async function login(): Promise<string> {
   return adminSession = body.token
 }
 
-export async function checkFlowAccount(): Promise<FlowSetupStatus> {
+function accountConnectionError(value: unknown): string | undefined {
+  const code = typeof value === 'string' ? /\[(?:rpc|browser)\/([a-z_0-9]+)\]/i.exec(value)?.[1]?.toLowerCase() : undefined
+  const reasons: Record<string, string> = {
+    request_failed: 'Permintaan kredit gagal di tab Flow. Refresh studio akun ini lalu klik Periksa akun.',
+    network_error: 'Tab Flow tidak bisa menghubungi Google. Periksa jaringan, proxy, atau extension pemblokir di profil ini.',
+    authentication_required: 'Google meminta login ulang pada tab Flow akun ini.',
+    account_mismatch: 'Tab Flow sudah berganti akun. Buka studio akun ini di tab atau profil browser terpisah.',
+    page_not_ready: 'Studio akun ini belum siap. Biarkan tab Flow akun ini terbuka.',
+    request_timeout: 'Tab Flow tidak merespons. Refresh studio akun ini lalu klik Periksa akun.',
+    http_400: 'Google menolak sesi halaman (HTTP 400). Refresh studio akun ini untuk memperbarui sesi.',
+    http_404: 'Endpoint Flow tidak ditemukan (HTTP 404). Refresh studio dan periksa pembaruan connector.',
+    http_409: 'Google melaporkan konflik permintaan (HTTP 409). Tunggu lalu periksa akun.',
+    http_429: 'Google membatasi permintaan akun ini (HTTP 429). Tunggu sebelum memeriksa lagi.',
+    http_500: 'Google Flow bermasalah (HTTP 500). Periksa lagi nanti.',
+    http_502: 'Gateway Google Flow bermasalah (HTTP 502). Periksa lagi nanti.',
+    http_503: 'Google Flow sementara tidak tersedia (HTTP 503). Periksa lagi nanti.'
+  }
+  return code && Object.hasOwn(reasons, code) ? `Pairing tersimpan, tetapi kredit belum terverifikasi. ${reasons[code]} (${code}) Tidak perlu pairing ulang.` : undefined
+}
+
+export async function checkFlowAccount(timeoutMs = 10_000): Promise<FlowSetupStatus> {
   if (!server || status.state !== 'running') return flowSetupStatus()
   try {
     const child = server
     const auth = await login()
-    const res = await fetch(`${LOCAL_FLOW_URL}/api/tokens`, { headers: { Authorization: `Bearer ${auth}` }, signal: AbortSignal.timeout(10_000) })
+    const res = await fetch(`${LOCAL_FLOW_URL}/api/tokens`, { headers: { Authorization: `Bearer ${auth}` }, signal: AbortSignal.timeout(timeoutMs) })
     if (!res.ok) { adminSession = null; throw new Error('Akun belum bisa diperiksa. Coba lagi.') }
-    const tokens = await res.json() as { id: number; email: string; is_active?: boolean; at?: string; at_expired?: boolean; browser_bridge?: boolean; browser_connected?: boolean; credits_updated_at?: string | null }[]
+    const tokens = await res.json() as { id: number; email: string; is_active?: boolean; at?: string; at_expired?: boolean; browser_bridge?: boolean; browser_connected?: boolean; credits_updated_at?: string | null; last_st_refresh_result?: string }[]
     if (!Array.isArray(tokens)) throw new Error('Daftar akun tidak valid')
     if (server !== child || stopping) return flowSetupStatus()
     const ready = (t: typeof tokens[number]): boolean => !!t.is_active && (t.browser_bridge ? !!t.browser_connected && !!t.credits_updated_at : !!t.at && !t.at_expired)
     const count = tokens.filter(ready).length
     recordCheck('flow2api-local', count > 0, count ? 'Akun Flow terhubung' : 'Hubungkan akun Flow dulu')
-    report({ accountReady: count > 0, activeAccounts: count, accounts: tokens.map(t => ({ id: t.id, email: t.email, enabled: !!t.is_active, ready: ready(t) })), error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : tokens.some(t => t.browser_bridge) ? 'Buka tab studio Flow yang sudah dipasangkan dan biarkan extension aktif. Klik Periksa akun setelah browser terhubung.' : 'Klik Hubungkan Google Flow untuk login.' })
+    report({ accountReady: count > 0, activeAccounts: count, accounts: tokens.map(t => ({ id: t.id, email: t.email, enabled: !!t.is_active, ready: ready(t), connectionError: t.browser_bridge && !ready(t) ? accountConnectionError(t.last_st_refresh_result) : undefined })), error: null, message: count ? 'Akun Flow terhubung. Kamu bisa memilih model di Ide cerita.' : tokens.some(t => t.browser_bridge) ? 'Buka tab studio Flow yang sudah dipasangkan dan biarkan extension aktif. Klik Periksa akun setelah browser terhubung.' : 'Klik Hubungkan Google Flow untuk login.' })
   } catch { if (server && !stopping) { recordCheck('flow2api-local', false, 'Akun belum bisa diperiksa'); report({ accountReady: false, activeAccounts: 0, accounts: status.accounts.map(a => ({ ...a, ready: false })), error: 'Akun belum bisa diperiksa. Buka panel atau coba lagi.' }) } }
   return flowSetupStatus()
 }
@@ -325,7 +345,7 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
       if (ctrl.signal.aborted) throw new Error('Login dibatalkan')
       const current = await request('status')
       if (current.job_id !== jobId) throw new Error('Pairing sudah berubah. Buat kode baru.')
-      if (current.phase === 'ready' && current.account) { connectedId = current.account.id; break }
+      if (current.phase === 'ready' && current.account) { connectedId = current.account.id; report({ pairingCode: null }); break }
       if (current.phase === 'error' || current.phase === 'cancelled') {
         const reasons: Record<string, string> = {
           pairing_invalid: 'Kode pairing kedaluwarsa, dibatalkan, atau sudah dipakai. Salin kode baru sebelum mencoba lagi.',
@@ -348,10 +368,13 @@ export async function connectFlowAccount(accountId?: number): Promise<void> {
       await sleep(1000)
     }
     if (connectedId === undefined) throw new Error('Waktu pairing habis. Klik Hubungkan Google Flow untuk mencoba lagi.')
-    for (let attempt = 0; attempt < 30; attempt++) {
+    const verificationDeadline = Date.now() + 30_000
+    for (let attempt = 0; attempt < 30 && Date.now() < verificationDeadline; attempt++) {
       if (ctrl.signal.aborted) throw new Error('Login dibatalkan.')
-      await checkFlowAccount()
-      if (status.accounts.some(a => a.id === connectedId && a.ready)) break
+      await checkFlowAccount(Math.max(1, Math.min(5000, verificationDeadline - Date.now())))
+      const account = status.accounts.find(a => a.id === connectedId)
+      if (account?.ready) break
+      if (account?.connectionError) throw new Error(account.connectionError)
       report({ message: 'Menunggu koneksi tab Flow dan pemeriksaan akun. Biarkan studio dan extension terbuka…' })
       await sleep(1000)
     }
