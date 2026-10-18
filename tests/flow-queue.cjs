@@ -110,3 +110,15 @@ test('a Flow tab loaded before the startup integration gets a precise safe reloa
   assert.ok(error instanceof FlowSetupError);assert.match(error.message,/captcha_native_reload_required/)
   assert.match(error.message,/Pairing tetap tersimpan/);assert.doesNotMatch(error.message,/private-details/)
 })
+
+test("unresponsive paired tabs stop queued work without revealing upstream details", () => {
+  for (const code of ["request_timeout", "page_not_ready"]) {
+    const error=flowFailure("private-data [browser/"+code+"]")
+    assert.ok(error instanceof FlowSetupError);assert.doesNotMatch(error.message,/private-data/)
+  }
+})
+
+test("RPC timeouts retain uncertain submission guidance", () => {
+  const error=flowFailure("private-data [rpc/request_timeout]")
+  assert.ok(error instanceof FlowSetupError);assert.match(error.message,/belum pasti/);assert.doesNotMatch(error.message,/private-data/)
+})

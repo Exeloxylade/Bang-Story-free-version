@@ -9,7 +9,10 @@ export function flowFailure(value: unknown): Error {
   if (/\bPUBLIC_ERROR_UNUSUAL_ACTIVITY\b/i.test(message)) {
     return new FlowSetupError('Google menolak permintaan Flow karena aktivitas tidak biasa (PUBLIC_ERROR_UNUSUAL_ACTIVITY). Pekerjaan yang belum mulai dibatalkan. Tunggu beberapa menit, nonaktifkan VPN/proxy jika digunakan, lalu periksa Generate langsung di Flow. Menghubungkan ulang akun tidak menjamin masalah ini selesai.')
   }
-  const matched = /\[(captcha|rpc)\/([a-z_]+)\]/i.exec(message)
+  if (/\[(?:browser|rpc)\/request_timeout\]/i.test(message)) {
+    return new FlowSetupError('Tab Flow tidak merespons (browser/request_timeout). Pekerjaan yang belum mulai dibatalkan. Reload connector lalu refresh studio Flow. Hasil permintaan sebelumnya belum pasti; periksa tugas yang sudah ada sebelum mencoba lagi.')
+  }
+  const matched = /\[(captcha|rpc|browser)\/([a-z_]+)\]/i.exec(message)
   if (matched?.[1]?.toLowerCase() === 'captcha' || /reCAPTCHA|CAPTCHA|captcha token/i.test(message)) {
     const code = matched?.[2] ?? 'captcha_provider_failed'
     const known = ['captcha_script_failed', 'captcha_script_policy', 'captcha_library_unavailable', 'captcha_timeout', 'captcha_rejected', 'captcha_unavailable', 'request_failed', 'captcha_provider_failed']
