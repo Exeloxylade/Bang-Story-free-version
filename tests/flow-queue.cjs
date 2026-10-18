@@ -90,3 +90,16 @@ test('SSE and HTTP CAPTCHA errors reach the queue classifier; successful images 
     const result=await run(); assert.equal(result.bytes.toString(),'hello'); assert.equal(result.contentType,'image/png')
   } finally {global.fetch=oldFetch}
 })
+
+
+test('Google unusual-activity rejection stops the remaining batch and preserves only a safe reason', async () => {
+  const f=fixture(), a=deferred(), b=deferred();let unexpected=0
+  f.start('a',()=>a.promise); f.start('b',()=>b.promise)
+  f.start('waiting',async()=>{unexpected++})
+  await tick()
+  const error=flowFailure({message:'private-cookie Flow frontend RPC rejected: rpc=ogiZ0b, error=PUBLIC_ERROR_UNUSUAL_ACTIVITY: reCAPTCHA evaluation failed'})
+  assert.ok(error instanceof FlowSetupError);assert.match(error.message,/PUBLIC_ERROR_UNUSUAL_ACTIVITY/);assert.doesNotMatch(error.message,/private-cookie/)
+  a.reject(error);await tick()
+  assert.equal(f.rows.get('waiting').status,'canceled');assert.equal(unexpected,0)
+  b.resolve();await tick();assert.equal(f.rows.get('b').status,'done')
+})

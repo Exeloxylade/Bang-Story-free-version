@@ -3,6 +3,9 @@ export class FlowSetupError extends Error {}
 /** Only known codes become UI messages; upstream bodies can contain credentials. */
 export function flowFailure(value: unknown): Error {
   const message = typeof value === 'string' ? value : value && typeof value === 'object' && 'message' in value && typeof value.message === 'string' ? value.message : ''
+  if (/\bPUBLIC_ERROR_UNUSUAL_ACTIVITY\b/i.test(message)) {
+    return new FlowSetupError('Google menolak permintaan Flow karena aktivitas tidak biasa (PUBLIC_ERROR_UNUSUAL_ACTIVITY). Pekerjaan yang belum mulai dibatalkan. Tunggu beberapa menit, nonaktifkan VPN/proxy jika digunakan, lalu periksa Generate langsung di Flow. Menghubungkan ulang akun tidak menjamin masalah ini selesai.')
+  }
   const matched = /\[(captcha|rpc)\/([a-z_]+)\]/i.exec(message)
   if (matched?.[1]?.toLowerCase() === 'captcha' || /reCAPTCHA|CAPTCHA|captcha token/i.test(message)) {
     const code = matched?.[2] ?? 'captcha_provider_failed'
