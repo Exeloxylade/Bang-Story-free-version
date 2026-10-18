@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { extname } from 'node:path'
-import { FLOW_PREFIX, flowModelId } from '@shared/media'
+import { FLOW_PREFIX, flowModelId, flowVideoModelForDuration } from '@shared/media'
 import { flowFailure } from '@shared/flowErrors'
-import type { KeyTestResult, ModelOption } from '@shared/types'
+import type { AspectRatio, KeyTestResult, ModelOption } from '@shared/types'
 import { requireSecret } from '../secrets'
 import { getSettings } from '../settings'
 import { downloadTo } from './http'
@@ -21,8 +21,8 @@ function base(): string {
   return url.toString().replace(/\/+$/, '').replace(/\/v1$/, '') + '/v1'
 }
 
-async function models(key?: string): Promise<{ id: string; description?: string }[]> {
-  const res = await fetch(`${base()}/models`, { headers: { Authorization: `Bearer ${apiKey(key)}` }, signal: AbortSignal.timeout(20_000) })
+async function models(key?: string, signal?: AbortSignal): Promise<{ id: string; description?: string }[]> {
+  const res = await fetch(`${base()}/models`, { headers: { Authorization: `Bearer ${apiKey(key)}` }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000) })
   if (!res.ok) throw new Error(`Flow2API tidak bisa dihubungi (HTTP ${res.status}). Periksa alamat server dan kunci.`)
   const body = await res.json() as { data?: { id: string; description?: string }[] }
   if (!Array.isArray(body.data)) throw new Error('Daftar model Flow2API tidak valid.')
@@ -36,7 +36,11 @@ export async function testKey(key?: string): Promise<KeyTestResult> {
 
 export async function listModels(kind: 'image' | 'video'): Promise<ModelOption[]> {
   return (await models()).filter(m => kind === 'image' ? /image|imagen/i.test(m.id) : (/-i2v-|_i2v_|^omni-/.test(m.id) && !/extend|interpolation|upsample/i.test(m.id)))
-    .map(m => ({ id: FLOW_PREFIX + m.id, name: m.id, description: m.description, tags: [kind === 'image' ? 'Gambar' : 'Video'], family: 'Google Flow' }))
+    .map(m => ({ id: FLOW_PREFIX + m.id, name: m.id, description: m.description, tags: kind === 'image' ? ['Gambar'] : ['Video', 'Durasi otomatis'], family: 'Google Flow' }))
+}
+
+export async function resolveVideoModel(id: string, aspect: AspectRatio, seconds: number, signal?: AbortSignal): Promise<string> {
+  return flowVideoModelForDuration(id, aspect, seconds, (await models(undefined, signal)).map(m => m.id))
 }
 
 export function imageData(path: string): string {

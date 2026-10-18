@@ -20,7 +20,7 @@ function FlowPicker({ kind, value, onChange }: { kind: 'image' | 'video'; value:
     <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-line-2 bg-surface p-3">
       <span className="text-sm font-semibold">Flow2API · {kind === 'image' ? 'Gambar klip' : 'Video AI'}</span>
       <ModelPicker value={value} models={models} allowCustom loading={loading} error={error} onRefresh={() => void refresh()} onChange={id => onChange(isFlowModel(id) ? id : `flow2api:${id}`)} />
-      <p className="text-xs text-muted">{kind === 'image' ? 'Mendukung referensi lembar karakter.' : 'Pilih model i2v atau Omni untuk memakai gambar klip.'} Pilih model landscape untuk 16:9 atau portrait untuk 9:16; durasi video ditentukan model.</p>
+      <p className="text-xs text-muted">{kind === 'image' ? 'Mendukung referensi lembar karakter.' : 'Pilih model i2v atau Omni untuk memakai gambar klip. Durasi dipilih otomatis per adegan mengikuti suara: varian terdekat yang tersedia dalam keluarga model yang sama; jika sama dekat, pilih yang lebih panjang. Tanpa suara, memakai durasi adegan. Angka detik pada pilihan model tidak mengunci semua adegan.'} Rasio landscape/portrait mengikuti proyek.</p>
       <p className="text-xs text-muted">Pemakaian mengikuti akun Google Flow. Perkiraan kredit belum tersedia.</p>
     </div>
   )

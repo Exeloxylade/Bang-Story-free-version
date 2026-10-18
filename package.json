@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test:story": "node --test tests/story-instructions.cjs",
     "test:media": "node --test tests/narration-render.cjs",
-    "test:flow": "node --test tests/flow-accounts.cjs tests/flow-setup.cjs tests/flow-queue.cjs",
+    "test:flow": "node --test tests/flow-accounts.cjs tests/flow-setup.cjs tests/flow-queue.cjs tests/flow-duration.cjs",
     "postinstall": "electron-builder install-app-deps",
     "dist": "npm run build && electron-builder --win --x64"
   },

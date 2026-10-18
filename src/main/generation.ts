@@ -6,6 +6,7 @@ import { stripVoiceTags } from '@shared/speech'
 import { getImageModel, getVideoModel, imageBody, maxRefs, promptLimit, videoBody, type HfModel } from '@shared/higgsfield'
 import { getStyle } from '@shared/styles'
 import { flowAspectModel, isFlowModel } from '@shared/media'
+import { voiceSpan } from '@shared/timeline'
 import type { AspectRatio, Asset, Character, Clip, CreditEstimate, Job, Project, WordTiming } from '@shared/types'
 import { getDb } from './db'
 import { emit } from './events'
@@ -247,7 +248,7 @@ function startFlow(projectId: string, target: HfPayload['target'], clipId?: stri
     const project = getProject(projectId)
     const selected = video ? project.videoModel : project.imageModel
     if (!selected || !isFlowModel(selected)) throw new Error('Penyedia proyek berubah. Pilih model Flow2API lalu coba lagi.')
-    const model = flowAspectModel(selected, target === 'sheet' ? '16:9' : project.aspectRatio)
+    let model = flowAspectModel(selected, target === 'sheet' ? '16:9' : project.aspectRatio)
     const refs: string[] = []
     let prompt: string
     ctx.progress(0.05, 'Menyiapkan prompt Flow2API')
@@ -258,6 +259,9 @@ function startFlow(projectId: string, target: HfPayload['target'], clipId?: stri
       if (video) {
         const image = getAsset(clip.imageAssetId)
         if (!image) throw new Error('Gambar klip tidak ditemukan')
+        const audio = getAsset(clip.audioAssetId)
+        const voiceMs = audio?.durationMs != null ? voiceSpan(clip, audio.durationMs).playMs : 0
+        model = await flow.resolveVideoModel(selected, project.aspectRatio, (voiceMs > 0 ? voiceMs : clip.durationMs) / 1000, ctx.signal)
         refs.push(flow.imageData(assetAbsPath(projectId, image.localPath)))
         prompt = (clip.videoPrompt.trim() || `${splitAvoid(clip.visualPrompt).scene}. Subtle natural motion, slow camera push in.`) + '\nKeep the art style, characters and composition of the first frame. No music, no speech, no vocals.'
       } else {

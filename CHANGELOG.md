@@ -9,6 +9,7 @@ Cara menaikkan versi ada di [docs/pengembangan.md](docs/pengembangan.md#versi-da
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Durasi video Flow2API otomatis per adegan mengikuti panjang audio narasi yang dimainkan; tanpa audio, mengikuti durasi adegan. Memilih varian terdekat yang diiklankan server dalam keluarga/input/rasio yang sama (seri: pilih lebih panjang). Pilihan model 6 detik tidak lagi mengunci semua adegan. Flow2API mengekspos alias i2v Veo 8 detik dari konfigurasi lama yang sudah ada. Tidak mengubah kecepatan video atau aturan penyedia lain.
 - Narasi mengalir antar adegan: tidak menyisipkan long pause/paragraf otomatis, tetap mempertahankan jeda yang ditulis pengguna dan larangan napas/desahan. Potongan pendek mengikuti durasi audio asli; pemilihan ulang audio satu take tidak menambah ekor 400 ms. Berlaku saat membuat narasi baru; rekaman lama tetap tersimpan.
 - Connector 1.1.8 mempertahankan selector akun dari URL atau RPC asli pada sesi halaman yang sama, dan membedakan kegagalan jaringan/HTTP. Verifikasi kredit akun paired memakai satu permintaan; pairing yang tersimpan tidak dihapus ketika pengecekan gagal. Bang Story menghapus kode yang sudah dipakai dan menampilkan alasan gagal kredit tanpa menunggu berulang.
 - Pembacaan video Flow mendukung state numerik pada record baru dan signed URL tanpa `/video/`. Poster dipisahkan dari video; state selesai yang belum punya URL tetap dipolling sampai hasil siap. Tes mencakup pengiriman hasil ke unduhan Bang Story.

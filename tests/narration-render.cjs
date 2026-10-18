@@ -116,7 +116,7 @@ test('restoring a continuous narration segment does not add the legacy 400 ms ga
  let patch
  const asset={id:'audio',clipId:'clip',kind:'audio',durationMs:670,meta:{take:'continuous-take'}}
  const api=load('main/generation.ts',{
-  '@shared/captions':{},'@shared/speech':speech,'@shared/higgsfield':{},'@shared/styles':{},'@shared/media':{},
+  '@shared/captions':{},'@shared/speech':speech,'@shared/timeline':{},'@shared/higgsfield':{},'@shared/styles':{},'@shared/media':{},
   './db':{},'./events':{emit:{clip(){}}},'./jobs':{},'./paths':{},'./settings':{},
   './services/audio':{},'./services/elevenlabs':{},'./services/gemini':{},'./services/higgsfield':{},'./services/flow2api':{},'./services/http':{},
   './repo':{getAsset:()=>asset,patchClip:(id,value)=>{patch=value}}
