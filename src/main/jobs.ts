@@ -24,28 +24,18 @@ const LIMITS: Record<QueueName, number> = { higgsfield: 3, flow2api: 2, 'flow2ap
 const queues = Object.fromEntries(Object.keys(LIMITS).map(name => [name, new WorkQueue(() => name === 'flow2api' ? getSettings().flowImageConcurrency : LIMITS[name as QueueName])])) as Record<QueueName, WorkQueue>
 const controllers = new Map<string, AbortController>()
 const pending = new Map<string, QueueName>()
-let flowPause: string | null = null
-
-function pauseFlow(reason: string): void {
-  flowPause = reason
-  for (const name of Object.keys(queues) as QueueName[]) if (name.startsWith('flow2api')) queues[name].pause()
+// A setup failure must not strand a batch behind a persistent pause state.
+// Cancel only work that has not started; a submitted request may still succeed.
+function stopWaitingFlowJobs(): void {
   for (const [id, name] of pending) {
-    if (name.startsWith('flow2api')) emit.job(updateJob(id, { message: `Flow dijeda: ${reason}` }))
+    if (name.startsWith('flow2api')) controllers.get(id)?.abort()
   }
-}
-
-export function resumeFlowJobs(): void {
-  flowPause = null
-  for (const [id, name] of pending) if (name.startsWith('flow2api')) emit.job(updateJob(id, { message: null }))
-  // Sheets have an independent lane because scenes may wait for their sheets.
-  for (const name of Object.keys(queues) as QueueName[]) if (name.startsWith('flow2api')) queues[name].resume()
 }
 
 export function runJob(job: Job, queue: QueueName, task: Task): Job {
   const ctrl = new AbortController()
   controllers.set(job.id, ctrl)
   pending.set(job.id, queue)
-  if (flowPause && queue.startsWith('flow2api')) emit.job(updateJob(job.id, { message: `Flow dijeda: ${flowPause}` }))
   let lastEmit = 0
   const ctx: TaskCtx = {
     jobId: job.id,
@@ -75,7 +65,7 @@ export function runJob(job: Job, queue: QueueName, task: Task): Job {
       emit.job(updateJob(job.id, { status: 'done', progress: 1, ...extra }))
     } catch (e) {
       const canceled = ctrl.signal.aborted
-      if (!canceled && queue.startsWith('flow2api') && e instanceof FlowSetupError) pauseFlow(e.message)
+      if (!canceled && queue.startsWith('flow2api') && e instanceof FlowSetupError) stopWaitingFlowJobs()
       emit.job(
         updateJob(job.id, {
           status: canceled ? 'canceled' : 'failed',

@@ -455,7 +455,6 @@ export function StoryboardStep() {
   const [videoCredits, setVideoCredits] = useState<number | null>(null)
   const [planning, setPlanning] = useState(false)
   const lastNarration = useRef<string | null>(null)
-  const flowPaused = Object.values(jobs).find(j => j.provider === 'flow2api' && j.status === 'queued' && j.message?.startsWith('Flow dijeda: '))
 
   // A failed narration take is reported once, when it happens.
   useEffect(() => {
@@ -645,12 +644,6 @@ export function StoryboardStep() {
           </Button>
         )}
       </div>
-      {flowPaused && <div role="alert" className="rounded-xl border border-ink/20 p-3 text-sm space-y-2">
-        <p>{flowPaused.message}</p>
-        <Button onClick={() => { void window.api.generate.resumeFlow().catch(e => toast('error', errorText(e))) }}>Lanjutkan antrean Flow</Button>
-      </div>}
-
-
       <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_540px]">
         <section className="scroll-thin flex min-h-0 flex-col gap-3.5 overflow-y-auto px-6 pb-6 pt-[18px]">
           <div className="flex items-center gap-3">

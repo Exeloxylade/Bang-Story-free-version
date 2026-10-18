@@ -28,7 +28,7 @@ import {
   generateMissingTts,
   setActiveAsset
 } from './generation'
-import { cancelJob, resumeFlowJobs } from './jobs'
+import { cancelJob } from './jobs'
 import { generateNarration, syncCaptions } from './narration'
 import { cancelDownload, downloadModel, openModelFolder, removeModel, whisperStatus } from './whisper'
 import { assetAbsPath } from './paths'
@@ -127,7 +127,6 @@ export function registerIpc(): void {
   handle('whisper:remove', () => removeModel())
   handle('whisper:openFolder', () => openModelFolder())
   handle('generate:cancel', (jobId: string) => cancelJob(jobId))
-  handle('generate:resumeFlow', () => resumeFlowJobs())
   handle('generate:estimate', (kind: 'image' | 'video', modelId: string, aspect: AspectRatio, seconds?: number, resolution?: string | null) =>
     estimateCredits(kind, modelId, aspect, seconds, resolution)
   )

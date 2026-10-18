@@ -24,13 +24,13 @@ test('image work overlaps to configured limit, FIFO and release is idempotent', 
   r1(); r1(); const r3 = await p3; await tick(); assert.deepEqual(started, [3])
   r2(); const r4 = await p4; assert.deepEqual(started, [3,4]); r3(); r4()
 })
-test('paused queue retains work; cancellation is immediate and resume admits survivors', async () => {
+test('queued cancellation is immediate and does not consume a slot', async () => {
   const q = new WorkQueue(() => 1), canceled = new AbortController()
-  q.pause()
+  const release = await q.acquire(new AbortController().signal)
   const dead = q.acquire(canceled.signal); canceled.abort(); await assert.rejects(dead, /Canceled/)
   let started = false
   const live = q.acquire(new AbortController().signal).then(release => {started=true; return release})
-  await tick(); assert.equal(started,false); q.resume(); (await live)(); assert.equal(started,true)
+  await tick(); assert.equal(started,false); release(); (await live)(); assert.equal(started,true)
 })
 function fixture() {
   const rows = new Map(), events = []
@@ -42,16 +42,20 @@ function fixture() {
   function start(id, task, lane='flow2api') { const job={id, kind:'image', provider: lane.startsWith('flow2api')?'flow2api':'higgsfield', status:'queued'}; rows.set(id,job); api.runJob(job,lane,task); return job }
   return {api, rows, events, start}
 }
-test('setup error pauses queued Flow work before releasing slot; other providers continue', async () => {
+test('setup failure cancels waiting Flow jobs; existing requests and other providers finish; retry needs no resume', async () => {
   const f=fixture(), a=deferred(), b=deferred(), starts=[]
   f.start('a',()=>a.promise); f.start('b',()=>b.promise)
   f.start('c',async()=>{starts.push('c')}); f.start('d',async()=>{starts.push('d')})
+  f.start('sheet',async()=>{throw flowFailure('CAPTCHA unavailable [captcha/captcha_script_failed]')},'flow2api-sheet')
+  f.start('waiting-sheet',async()=>{starts.push('waiting-sheet')},'flow2api-sheet')
   await tick(); assert.equal(f.rows.get('a').status,'running'); assert.equal(f.rows.get('b').status,'running')
-  a.reject(flowFailure('Google CAPTCHA unavailable [captcha/captcha_script_failed]'))
-  await tick(); assert.equal(f.rows.get('a').status,'failed'); assert.match(f.rows.get('c').message,/Flow dijeda/); assert.deepEqual(starts,[])
-  b.resolve(); f.start('other',async()=>{starts.push('other')},'higgsfield'); await tick(); assert.deepEqual(starts,['other'])
-  await f.api.cancelJob('d'); await tick(); assert.equal(f.rows.get('d').status,'canceled')
-  f.api.resumeFlowJobs(); await tick(); assert.deepEqual(starts,['other','c']); assert.equal(f.rows.get('c').status,'done')
+  assert.equal(f.rows.get('sheet').status,'failed')
+  for (const id of ['c','d','waiting-sheet']) assert.equal(f.rows.get(id).status,'canceled')
+  assert.deepEqual(starts,[])
+  a.resolve(); b.resolve(); f.start('other',async()=>{starts.push('other')},'higgsfield'); await tick()
+  assert.equal(f.rows.get('a').status,'done'); assert.equal(f.rows.get('b').status,'done')
+  f.start('retry',async()=>{starts.push('retry')}); await tick()
+  assert.deepEqual(starts,['other','retry']); assert.equal(f.rows.get('retry').status,'done')
 })
 test('ordinary failures do not pause the queue, sheets have an independent lane', async () => {
   const f=fixture(), blocker=deferred()
